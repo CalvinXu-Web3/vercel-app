@@ -1,162 +1,108 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EvidenceIntake } from "@/components/evidence-intake";
 
 type Locale = "zh" | "en";
+type ModalName = "share" | "evidence" | "recovery" | "bounty" | "search" | null;
+type TimelineItem = {
+  id: string; date: string; zhTitle: string; enTitle: string; zhSummary: string; enSummary: string;
+};
+type NetworkNode = {
+  id: "case" | "wallet-4" | "okx" | "wallet-1" | "binance";
+  type: string; name: string; status: string; relationship: string;
+  links?: Array<{ label: string; url: string }>;
+};
+type DrawerContent =
+  | { type: "timeline"; item: TimelineItem }
+  | { type: "node"; item: NetworkNode }
+  | null;
+
+const caseCode = "CRN-2026-0703";
+const originalPhotoUrl = "/images/00.jpeg";
+
+const timeline: TimelineItem[] = [
+  { id: "jun-27", date: "06 / 27", zhTitle: "相关行程线索留档", enTitle: "Reported related travel", zhSummary: "提交材料记载了与后续案件事件相关的境外行程线索；姓名、航班与地点仍待交叉核验。", enSummary: "Submitted materials describe related overseas travel connected to later case events. Names, flight details and locations remain under review." },
+  { id: "jul-01", date: "07 / 01", zhTitle: "失联时间点记录", enTitle: "Reported loss of contact", zhSummary: "提交材料称相关人员于该日期失联；独立核验仍在进行中。", enSummary: "Submitted materials report that contact with a related individual ceased on this date. Independent verification remains pending." },
+  { id: "jul-02-03", date: "07 / 02–03", zhTitle: "境外会面线索", enTitle: "Reported overseas-meeting lead", zhSummary: "提交材料提出相关人员可能在境外会面的线索，尚未获得独立确认。", enSummary: "Submitted materials raise a possible overseas meeting between related individuals. It has not been independently confirmed." },
+  { id: "jul-03", date: "07 / 03", zhTitle: "拘押信息传播记录", enTitle: "Reported detention claim circulated", zhSummary: "提交材料称一则拘押信息及地点在此时传播；该说法尚未被独立证实。", enSummary: "Submitted materials report that a detention claim and a location were circulated. The claim has not been independently confirmed." },
+  { id: "jul-03-verify", date: "07 / 03+", zhTitle: "后续核验线索", enTitle: "Reported follow-up verification", zhSummary: "提交材料描述了在信息传播后寻求法律咨询及现场核验的过程；公开结论仍待原始材料支持。", enSummary: "Submitted materials describe legal consultation and on-site checking after the claim circulated. Public conclusions remain pending source documentation." },
+  { id: "jul-12", date: "07 / 12", zhTitle: "通讯记录留档", enTitle: "Message record retained", zhSummary: "与案件争议相关的通讯内容被留档；原始内容处于受控审核状态。", enSummary: "Submitted materials retain a message associated with the case dispute. Original content remains under controlled review." },
+  { id: "jul-15", date: "07 / 15", zhTitle: "补充通讯记录留档", enTitle: "Additional message record retained", zhSummary: "后续通讯与截图材料进入受控审核，尚未作为公开事实认定。", enSummary: "Submitted materials retain later messages and screenshots. Original content remains under controlled review." },
+  { id: "jul-22", date: "07 / 22", zhTitle: "最新可见消息活动", enTitle: "Latest reported message activity", zhSummary: "提交材料称该日期存在最后可见的消息活动；原始表述与身份信息未公开。", enSummary: "Submitted materials report the latest visible message activity on this date. The original wording and identity details are withheld." },
+];
+
+const nodes: NetworkNode[] = [
+  { id: "case", type: "CASE", name: "CRN CASE FILE", status: "UNDER REVIEW", relationship: "CENTRAL CASE RECORD" },
+  { id: "wallet-4", type: "WALLET", name: "4#", status: "DATA PENDING", relationship: "PUBLIC EXPLORER REFERENCE", links: [{ label: "在 ETHERSCAN 中查看 4#", url: "https://etherscan.io/address/0x7a53155f6dfcedc0061eb7247abb4250d691478f" }] },
+  { id: "okx", type: "EXCHANGE", name: "OKX", status: "DATA PENDING", relationship: "REFERENCE DESTINATION", links: [{ label: "在 TRONSCAN 中查看 OKX 参考地址", url: "https://tronscan.org/address/TSCMwyQu9y27zG95deB2nDRkNNuZzkDTnY/transfers" }, { label: "查看补充 OKX 参考地址", url: "https://tronscan.org/address/TGMJSBKMuEVn8JnbpdFY2QQaB6vxyt1cfV/transfers" }] },
+  { id: "wallet-1", type: "WALLET", name: "1#", status: "DATA PENDING", relationship: "PUBLIC EXPLORER REFERENCE", links: [{ label: "在 TRONSCAN 中查看 1#", url: "https://tronscan.org/address/TXGP8JAxGLdMpzSSodUEpHBCWT8yrVUJXn/transfers" }, { label: "查看补充 1# 参考地址", url: "https://tronscan.org/address/TQNesJ8N4bYiRRVHD2wJavPgw8oCWgcBx7/transfers" }] },
+  { id: "binance", type: "EXCHANGE", name: "Binance", status: "DATA PENDING", relationship: "REFERENCE DESTINATION", links: [{ label: "在 TRONSCAN 中查看 Binance 参考地址", url: "https://tronscan.org/address/TCLNmgHvZcm3kFy3gCKwDVD54z1aK5aCJc/transfers" }, { label: "查看补充 Binance 参考地址", url: "https://tronscan.org/address/TCLNmgHvZcm3kFy3gCKwDVD54z1aK5aCJc/transfers" }] },
+];
 
 const copy = {
   zh: {
-    localeName: "English",
-    archive: "公开案件档案",
-    caseCode: "案件编号",
-    title: "CRN — 案件与追偿网络",
-    intro:
-      "公开档案仅展示经审核且适合公开的信息。原始材料在受控证据流程中单独处理。",
-    timeline: "案件时间线",
-    timelineCaption: "以下条目仅作为待核实的公开线索索引，不替代司法或专业调查结论。",
-    evidence: "受控证据提交",
-    architecture: "Vercel · Neon PostgreSQL · Pinata",
-    migration: "React 迁移预览",
-    currentSite: "当前静态站继续保留，直至迁移验收完成。",
-    footer: "公开材料应遵守适用法律、隐私与平台规则。",
+    network: "案件与追偿网络", nav: ["案件", "链上", "证据", "受影响者", "悬赏"], share: "分享案件", caseFile: "案件档案", explore: "查看案件", schematic: "链上关系示意", noRecords: "未发布公开链上记录", pending: "待核验", overview: "案件概览", overviewText: "公开信息仅限于可供审核的材料。未经确认的记录将始终标注为待核验。", chronology: "案件时间线", chronologyText: "打开条目可查看其公开状态与来源可用性。", relationships: "人物 / 实体网络", relationshipsText: "本视图仅展示公开、必要且经过审核的关系线索。", onchain: "追踪资金流向", onchainText: "在取得可核验的链上记录之前，资金流向不作为事实展示。", evidence: "证据中心", evidenceText: "公开页面仅展示摘要；敏感原件始终进入受控审核流程。", intake: "安全提交", haveMaterial: "有材料需要提交？", intakeText: "登录后材料以短时签名链接直传 Pinata，并先进入审核队列。", submit: "提交材料", recovery: "你是否受到影响？", recoveryText: "可安全提交信息；报告影响或提交材料不要求连接钱包。", updates: "案件更新与媒体", updatesText: "仅在来源可识别时发布更新与媒体引用。", bounty: "悬赏", bountyText: "在 Core 模式下，案件传播可用，奖励、核验与申领功能保持禁用。", shareTitle: "分享此案件。", shareText: "帮助将经过谨慎标注的公开信息传递给可能提供材料或线索的人。", legal: "本网站整理并展示案件相关材料、提交信息与可验证的链上数据，不构成任何司法机关的刑事认定。未经法律程序确认的事项，均以主管机关的最终认定为准。严禁暴力、骚扰、威胁、网络曝光或攻击无关人员。公开信息须符合适用的隐私、数据保护与其他法律。", open: "打开", close: "关闭", search: "搜索公开案件记录", noResult: "没有匹配的公开记录。", copied: "链接已复制", copyLink: "复制案件链接",
   },
   en: {
-    localeName: "中文",
-    archive: "Public case archive",
-    caseCode: "Case ID",
-    title: "CRN — Case & Recovery Network",
-    intro:
-      "The public archive contains only reviewed, publishable information. Original material is handled separately through the controlled-evidence flow.",
-    timeline: "Case timeline",
-    timelineCaption:
-      "Entries below are an index of leads pending verification. They are not judicial findings or investigative conclusions.",
-    evidence: "Controlled evidence intake",
-    architecture: "Vercel · Neon PostgreSQL · Pinata",
-    migration: "React migration preview",
-    currentSite: "The current static site remains in place until the migration is accepted.",
-    footer: "Public material must comply with applicable law, privacy, and platform rules.",
+    network: "CASE & RECOVERY NETWORK", nav: ["CASE", "ON-CHAIN", "EVIDENCE", "VICTIMS", "BOUNTY"], share: "SHARE CASE", caseFile: "CASE FILE", explore: "EXPLORE CASE", schematic: "ON-CHAIN SCHEMATIC", noRecords: "NO PUBLIC CHAIN RECORDS PUBLISHED", pending: "DATA PENDING", overview: "CASE OVERVIEW", overviewText: "Public information is limited to material available for review. Unverified records remain clearly marked.", chronology: "CASE TIMELINE", chronologyText: "Open an entry to inspect its public status and source availability.", relationships: "PERSON / ENTITY NETWORK", relationshipsText: "Only public, necessary and reviewed relationships may appear in this view.", onchain: "FOLLOW THE MONEY", onchainText: "Funds are not visualized as fact until verified chain records are available.", evidence: "EVIDENCE CENTER", evidenceText: "Public pages show summaries only. Sensitive originals remain in controlled review.", intake: "SECURE INTAKE", haveMaterial: "HAVE MATERIAL TO SUBMIT?", intakeText: "After sign-in, material uploads to Pinata through a short-lived signed URL and enters review first.", submit: "SUBMIT EVIDENCE", recovery: "WERE YOU AFFECTED?", recoveryText: "Share information securely. Connecting a wallet is never required to report an impact or submit material.", updates: "CASE UPDATES & MEDIA", updatesText: "Updates and media references are published only when their sources can be identified.", bounty: "BOUNTY", bountyText: "In Core mode, case distribution is available while campaign rewards, verification and claiming remain disabled.", shareTitle: "SHARE THIS CASE.", shareText: "Help route carefully labeled public information to people who may be able to contribute evidence or intelligence.", legal: "This website organizes case-related materials, submitted information and verifiable on-chain data. It does not constitute a criminal finding by a judicial authority. Matters not confirmed through legal process remain subject to the final determination of competent authorities. Violence, harassment, threats, doxxing and attacks on uninvolved people are prohibited. Public information must comply with applicable privacy, data-protection and other laws.", open: "OPEN", close: "CLOSE", search: "Search public case records", noResult: "No matching public records.", copied: "Case link copied", copyLink: "COPY CASE LINK",
   },
 } as const;
 
-const events = [
-  {
-    date: "2026-06-27",
-    zh: "相关行程线索被记录，待与原始材料交叉核验。",
-    en: "A travel-related lead was logged for cross-checking against source material.",
-  },
-  {
-    date: "2026-07-01",
-    zh: "失联时间点被记录为待核实的案件事件。",
-    en: "A reported loss-of-contact point was recorded as an event pending verification.",
-  },
-  {
-    date: "2026-07-03",
-    zh: "出现相互矛盾的信息与地址线索，进入证据审核队列。",
-    en: "Conflicting information and an address lead entered the evidence-review queue.",
-  },
-  {
-    date: "2026-07-12",
-    zh: "公开通讯内容被作为时间线线索留档，尚未作为事实认定。",
-    en: "Public communications were indexed as a timeline lead, not treated as a factual finding.",
-  },
-  {
-    date: "2026-08-02",
-    zh: "一项出境相关线索被纳入后续核验范围。",
-    en: "An exit-travel lead was added for subsequent verification.",
-  },
-];
+function SectionHeading({ index, title, description, id }: { index: string; title: string; description: string; id: string }) {
+  return <div id={`${id}-heading`} className="section-heading reveal"><div id={`${id}-heading-copy`}><span id={`${id}-index`} className="section-index">{index}</span><h2 id={`${id}-title`}>{title}</h2></div><p id={`${id}-description`}>{description}</p></div>;
+}
+
+function ExplorerNetwork({ onNode, locale }: { onNode: (node: NetworkNode) => void; locale: Locale }) {
+  const t = copy[locale];
+  const props = (id: NetworkNode["id"], label: string) => ({ role: "button" as const, tabIndex: 0, "aria-label": label, onClick: () => { const node = nodes.find((item) => item.id === id); if (node) onNode(node); }, onKeyDown: (event: React.KeyboardEvent<SVGGElement>) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); const node = nodes.find((item) => item.id === id); if (node) onNode(node); } } });
+  return <svg id="crn-hero-network-svg" viewBox="0 0 620 540" role="img" aria-label={t.schematic}><defs id="crn-hero-network-defs"><linearGradient id="crn-flow-gold" x1="0" x2="1"><stop stopColor="#F5C76A" stopOpacity=".1" /><stop offset=".5" stopColor="#F5C76A" /><stop offset="1" stopColor="#4DA3FF" stopOpacity=".15" /></linearGradient><filter id="crn-network-glow"><feGaussianBlur stdDeviation="5" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter></defs><g id="crn-hero-network-lines" className="hero-network-lines"><path d="M303 264 122 123M303 264 150 423M303 264 490 120M303 264 500 392M122 123 150 423M490 120 500 392" /><path className="pulse-path" d="M303 264 490 120" /></g><g id="crn-hero-node-case" className="hero-node central" {...props("case", "Open CRN case file")}><circle r="93" cx="303" cy="264" className="outer" /><circle r="66" cx="303" cy="264" className="middle" /><circle r="45" cx="303" cy="264" className="inner" filter="url(#crn-network-glow)" /><text x="303" y="255">ESTIMATED</text><text x="303" y="278" className="big">50M</text><text x="303" y="299">USDT</text></g><g id="crn-hero-node-wallet-4" className="hero-node satellite" {...props("wallet-4", "Open 4# reference")}><circle r="35" cx="122" cy="123" /><circle r="23" cx="122" cy="123" /><text x="122" y="130">4#</text></g><g id="crn-hero-node-okx" className="hero-node satellite" {...props("okx", "Open OKX reference")}><circle r="35" cx="150" cy="423" /><circle r="23" cx="150" cy="423" /><text x="150" y="430">OKX</text></g><g id="crn-hero-node-wallet-1" className="hero-node satellite blue" {...props("wallet-1", "Open 1# reference")}><circle r="35" cx="490" cy="120" /><circle r="23" cx="490" cy="120" /><text x="490" y="127">1#</text></g><g id="crn-hero-node-binance" className="hero-node satellite blue" {...props("binance", "Open Binance reference")}><circle r="35" cx="500" cy="392" /><circle r="23" cx="500" cy="392" /><text x="500" y="399">Binance</text></g></svg>;
+}
+
+function EntityNetwork({ onNode }: { onNode: (node: NetworkNode) => void }) {
+  const positions: Record<NetworkNode["id"], [number, number, number]> = { case: [500, 220, 75], "wallet-4": [186, 98, 46], okx: [194, 343, 46], "wallet-1": [818, 99, 46], binance: [810, 342, 46] };
+  const edges: Array<[NetworkNode["id"], NetworkNode["id"]]> = [["case", "wallet-4"], ["case", "okx"], ["case", "wallet-1"], ["case", "binance"], ["wallet-4", "wallet-1"], ["okx", "binance"]];
+  return <svg id="crn-entity-network-svg" viewBox="0 0 1000 440" role="img" aria-label="Public relationship graph"><defs id="crn-entity-network-defs"><clipPath id="crn-case-photo-clip"><circle cx="500" cy="220" r="75" /></clipPath></defs>{edges.map(([from, to]) => { const [x1, y1] = positions[from]; const [x2, y2] = positions[to]; return <line id={`crn-entity-edge-${from}-${to}`} className="network-edge" key={`${from}-${to}`} x1={x1} y1={y1} x2={x2} y2={y2} />; })}{nodes.map((node) => { const [x, y, radius] = positions[node.id]; const isCase = node.id === "case"; return <g id={`crn-entity-node-${node.id}`} className={`entity-node ${isCase ? "case" : ""}`} key={node.id} onClick={() => onNode(node)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onNode(node); } }} role="button" tabIndex={0} aria-label={`Open ${node.name} public profile`}>{isCase ? <><circle cx={x} cy={y} r="98" className="entity-node-orbit" /><image href={originalPhotoUrl} x={x - radius} y={y - radius} width={radius * 2} height={radius * 2} preserveAspectRatio="xMidYMid slice" clipPath="url(#crn-case-photo-clip)" /><circle cx={x} cy={y} r={radius} className="case-photo-overlay" /></> : <circle cx={x} cy={y} r={radius} />}<text x={x} y={y - 3}>{isCase ? "CASE FILE" : node.type}</text><text x={x} y={y + 15}>{isCase ? caseCode : node.name}</text></g>; })}</svg>;
+}
 
 export function CaseArchive() {
   const [locale, setLocale] = useState<Locale>("zh");
+  const [bootVisible, setBootVisible] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
+  const [modal, setModal] = useState<ModalName>(null);
+  const [drawer, setDrawer] = useState<DrawerContent>(null);
+  const [filter, setFilter] = useState("ALL");
+  const [query, setQuery] = useState("");
+  const [toast, setToast] = useState("");
   const t = copy[locale];
-  const caseCode = useMemo(() => "CRN-2026-0703", []);
-
-  return (
-    <main id="crn-main-archive" className="page-shell">
-      <header id="crn-site-header" className="site-header">
-        <a id="crn-brand-link" className="brand" href="#crn-main-archive">
-          <span aria-hidden="true" className="brand-mark">
-            CRN
-          </span>
-          <span>Case &amp; Recovery Network</span>
-        </a>
-        <button
-          id="crn-language-toggle"
-          className="language-toggle"
-          type="button"
-          onClick={() => setLocale(locale === "zh" ? "en" : "zh")}
-        >
-          {t.localeName}
-        </button>
-      </header>
-
-      <section id="crn-case-overview" className="case-overview" aria-labelledby="crn-title">
-        <p id="crn-migration-badge" className="eyebrow">
-          {t.migration}
-        </p>
-        <p id="crn-archive-label" className="section-label">
-          {t.archive}
-        </p>
-        <h1 id="crn-title">{t.title}</h1>
-        <p id="crn-case-summary" className="lede">
-          {t.intro}
-        </p>
-        <dl id="crn-case-meta" className="case-meta">
-          <div id="crn-case-code-row">
-            <dt id="crn-case-code-label">{t.caseCode}</dt>
-            <dd id="crn-case-code-value">{caseCode}</dd>
-          </div>
-          <div id="crn-architecture-row">
-            <dt id="crn-architecture-label">Architecture</dt>
-            <dd id="crn-architecture-value">{t.architecture}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section id="crn-timeline-section" className="content-section" aria-labelledby="crn-timeline-title">
-        <div id="crn-timeline-heading-group" className="section-heading">
-          <p id="crn-timeline-label" className="section-label">
-            {t.archive}
-          </p>
-          <h2 id="crn-timeline-title">{t.timeline}</h2>
-          <p id="crn-timeline-caption" className="muted">
-            {t.timelineCaption}
-          </p>
-        </div>
-        <ol id="crn-timeline-list" className="timeline-list">
-          {events.map((event) => (
-            <li id={`crn-timeline-${event.date}`} key={event.date} className="timeline-item">
-              <time id={`crn-timeline-date-${event.date}`} dateTime={event.date}>
-                {event.date}
-              </time>
-              <p id={`crn-timeline-summary-${event.date}`}>
-                {locale === "zh" ? event.zh : event.en}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section id="crn-evidence-section" className="content-section evidence-section" aria-labelledby="crn-evidence-title">
-        <div id="crn-evidence-heading-group" className="section-heading">
-          <p id="crn-evidence-label" className="section-label">
-            {t.archive}
-          </p>
-          <h2 id="crn-evidence-title">{t.evidence}</h2>
-          <p id="crn-evidence-description" className="muted">
-            {locale === "zh"
-              ? "登录后，文件将以短时签名地址直接传至 Pinata；Vercel 不接收文件二进制。"
-              : "After sign-in, files upload directly to Pinata through a short-lived signed URL; Vercel does not receive file bytes."}
-          </p>
-        </div>
-        <EvidenceIntake locale={locale} caseCode={caseCode} />
-      </section>
-
-      <footer id="crn-site-footer" className="site-footer">
-        <p id="crn-current-site-note">{t.currentSite}</p>
-        <p id="crn-compliance-note">{t.footer}</p>
-      </footer>
-    </main>
-  );
+  useEffect(() => { const timer = window.setTimeout(() => setBootVisible(false), 950); const onScroll = () => setScrolled(window.scrollY > 18); onScroll(); window.addEventListener("scroll", onScroll, { passive: true }); return () => { window.clearTimeout(timer); window.removeEventListener("scroll", onScroll); }; }, []);
+  useEffect(() => { document.documentElement.lang = locale === "zh" ? "zh-CN" : "en"; }, [locale]);
+  const searchResults = useMemo(() => { const needle = query.trim().toLocaleLowerCase(); if (!needle) return []; const matchingTimeline = timeline.filter((item) => `${item.date} ${item.zhTitle} ${item.enTitle} ${item.zhSummary} ${item.enSummary}`.toLocaleLowerCase().includes(needle)).map((item) => ({ type: "timeline" as const, item })); const matchingNodes = nodes.filter((item) => `${item.name} ${item.type} ${item.relationship}`.toLocaleLowerCase().includes(needle)).map((item) => ({ type: "node" as const, item })); return [...matchingTimeline, ...matchingNodes]; }, [query]);
+  const openDrawer = (content: DrawerContent) => { setModal(null); setDrawer(content); };
+  const displayTitle = (item: TimelineItem) => locale === "zh" ? item.zhTitle : item.enTitle;
+  const displaySummary = (item: TimelineItem) => locale === "zh" ? item.zhSummary : item.enSummary;
+  const copyUrl = async () => { try { await navigator.clipboard.writeText(window.location.href); setToast(t.copied); } catch { setToast(window.location.href); } };
+  const share = async (channel?: "x" | "whatsapp" | "email" | "native") => { const url = window.location.href; if (channel && channel !== "native") { const text = encodeURIComponent(`${caseCode} — ${t.shareTitle}`); const target = channel === "x" ? `https://x.com/intent/post?text=${text}&url=${encodeURIComponent(url)}` : channel === "whatsapp" ? `https://wa.me/?text=${text}%20${encodeURIComponent(url)}` : `mailto:?subject=${text}&body=${encodeURIComponent(url)}`; window.open(target, "_blank", "noopener,noreferrer"); return; } if (navigator.share) await navigator.share({ title: caseCode, text: t.shareTitle, url }); else await copyUrl(); };
+  return <><div id="crn-ambient-canvas" className="ambient-canvas" aria-hidden="true" /><div id="crn-page-noise" className="page-noise" aria-hidden="true" /><section id="crn-boot-screen" className={`boot-screen ${bootVisible ? "" : "is-hidden"}`} aria-live="polite"><div id="crn-boot-mark" className="boot-mark">CRN</div><p id="crn-boot-network">{t.network}</p><div id="crn-boot-line" className="boot-line"><span /></div><small id="crn-boot-message">INITIALIZING EVIDENCE NETWORK…</small><button id="crn-skip-boot" className="text-button" type="button" onClick={() => setBootVisible(false)}>SKIP</button></section>
+    <header id="crn-top" className={`navbar ${scrolled ? "scrolled" : ""}`}><a id="crn-brand-link" className="brand" href="#crn-top" aria-label="CRN home"><span id="crn-brand-mark" className="brand-mark">CRN</span><span id="crn-brand-name">CRN</span><em id="crn-brand-subtitle">{t.network}</em></a><nav id="crn-desktop-navigation" className="desktop-nav" aria-label="Primary navigation">{["case", "onchain", "evidence", "recovery", "bounty"].map((target, index) => <a id={`crn-nav-${target}`} href={`#${target}`} key={target}>{t.nav[index]}</a>)}</nav><div id="crn-nav-actions" className="nav-actions"><div id="crn-language-switch" className="language-switch" role="group" aria-label="Select language"><button id="crn-language-zh" className={locale === "zh" ? "active" : ""} type="button" aria-pressed={locale === "zh"} onClick={() => setLocale("zh")}>中文</button><button id="crn-language-en" className={locale === "en" ? "active" : ""} type="button" aria-pressed={locale === "en"} onClick={() => setLocale("en")}>EN</button></div><button id="crn-open-search" className="icon-button" type="button" aria-label={t.search} onClick={() => setModal("search")}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 20-4.7-4.7m2.2-5.05a7.25 7.25 0 1 1-14.5 0 7.25 7.25 0 0 1 14.5 0Z" /></svg></button><button id="crn-nav-share" className="button button-gold nav-share" type="button" onClick={() => setModal("share")}>{t.share}</button></div></header>
+    <main id="crn-main-archive"><section id="crn-hero" className="hero section-grid" aria-labelledby="crn-hero-title"><div id="crn-hero-copy" className="hero-copy reveal"><div id="crn-hero-eyebrow" className="eyebrow"><span className="live-dot" /> <span>{t.caseFile}</span> <span>{caseCode}</span></div><h1 id="crn-hero-title">INVESTOR<br /><span>RECOVERY</span><br />NETWORK</h1><div id="crn-hero-amount" className="hero-amount"><strong>50,000,000</strong><span>USDT</span><small>ESTIMATED FIGURE · PUBLIC SOURCE PENDING</small></div><p id="crn-hero-description" className="hero-description">{locale === "zh" ? "公开案件材料、可核验链上证据与投资者信息提交网络。" : "A public network for case materials, verifiable on-chain evidence, and investor information submission."}</p><div id="crn-hero-actions" className="hero-actions"><a id="crn-hero-explore" className="button button-primary" href="#case">{t.explore}<i>↘</i></a><button id="crn-hero-share" className="button button-ghost" type="button" onClick={() => setModal("share")}>{t.share}<i>↗</i></button></div></div><div id="crn-hero-network" className="hero-network reveal delay-1"><div id="crn-hero-network-label" className="network-label"><span /> <span>{t.schematic}</span></div><ExplorerNetwork locale={locale} onNode={(item) => openDrawer({ type: "node", item })} /><div id="crn-network-caption" className="network-caption"><span>{t.noRecords}</span><span>{t.pending}</span></div></div><div id="crn-hero-status" className="hero-status">{[["CASE", "ACTIVE"], ["ON-CHAIN", "TRACKING"], ["EVIDENCE", "COLLECTING"], ["RECOVERY", "IN PROGRESS"]].map(([label, value]) => <div id={`crn-status-${label.toLowerCase()}`} className="status-block" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><a id="crn-scroll-cue" className="scroll-cue" href="#case"><span /> <span>SCROLL TO INVESTIGATE</span></a></section>
+      <section id="case" className="section case-overview" aria-labelledby="crn-case-title"><SectionHeading id="crn-case" index="01 / CASE FILE" title={t.overview} description={t.overviewText} /><div id="crn-case-metrics" className="metric-grid">{[["ESTIMATED FUNDS", "50,000,000 USDT", "ESTIMATED · PUBLIC SOURCE PENDING"], ["AFFECTED INVESTORS", t.pending, "NO VERIFIED COUNT PUBLISHED"], ["WALLETS TRACKED", t.pending, "NO VERIFIED ADDRESSES PUBLISHED"], ["TRANSACTIONS", t.pending, "NO VERIFIED TXIDS PUBLISHED"]].map(([label, value, note], index) => <article id={`crn-metric-${index + 1}`} className="metric-card" key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>)}</div><div id="crn-case-meta" className="case-meta panel">{[["CASE ID", caseCode], ["STATUS", "UNDER REVIEW"], ["FIRST REPORTED", "DATA PENDING"], ["LAST UPDATED", "2026-09-20"]].map(([label, value], index) => <div id={`crn-meta-${index + 1}`} className="meta-item" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div id="crn-knowledge-grid" className="knowledge-grid">{["PUBLIC SOURCE", "ON-CHAIN", "COMMUNICATION", "PAYMENT", "LEGAL", "OTHER"].map((label, index) => <div id={`crn-knowledge-${index + 1}`} className="knowledge-stat" key={label}><span>{label}</span><strong>{t.pending}</strong><small>UNDER CONTROLLED REVIEW</small></div>)}</div></section>
+      <section id="timeline" className="section timeline-section" aria-labelledby="crn-timeline-title"><SectionHeading id="crn-timeline" index="02 / CHRONOLOGY" title={t.chronology} description={t.chronologyText} /><div id="crn-timeline-list" className="timeline-wrap">{timeline.map((item) => <article id={`crn-timeline-${item.id}`} className="timeline-item reveal" key={item.id}><div className="timeline-date">{item.date}</div><div className="timeline-content"><h3>{displayTitle(item)}</h3><p>{displaySummary(item)}</p></div><button id={`crn-timeline-open-${item.id}`} className="timeline-open" type="button" onClick={() => openDrawer({ type: "timeline", item })}>{t.open} ↗</button></article>)}</div></section>
+      <section id="entities" className="section network-section" aria-labelledby="crn-entities-title"><SectionHeading id="crn-entities" index="03 / RELATIONSHIPS" title={t.relationships} description={t.relationshipsText} /><div id="crn-entity-panel" className="network-panel panel"><div id="crn-entity-legend" className="panel-topline"><span><i className="legend-dot case" /> CASE</span><span><i className="legend-dot pending" /> {t.pending}</span><span className="panel-note">SELECT A NODE FOR PUBLIC PROFILE</span></div><div id="crn-entity-network" className="entity-network"><EntityNetwork onNode={(item) => openDrawer({ type: "node", item })} /></div></div></section>
+      <section id="onchain" className="section onchain-section" aria-labelledby="crn-onchain-title"><SectionHeading id="crn-onchain" index="04 / ON-CHAIN" title={t.onchain} description={t.onchainText} /><div id="crn-flow-panel" className="flow-panel panel"><div id="crn-flow-note" className="flow-note"><span className="status-chip pending">{t.pending}</span><p>{locale === "zh" ? "这是调查结构视图，并非交易或钱包归属的事实陈述。" : "This is a structural investigation view, not a statement of transactions or wallet ownership."}</p></div><div id="crn-fund-flow" className="fund-flow"><span>CASE</span><i>→</i><span>4#</span><i>→</i><span>1#</span><i>→</i><span>BINANCE / OKX</span></div></div><div id="crn-wallet-profile" className="wallet-profile panel"><div className="wallet-lead"><span>PUBLIC ON-CHAIN PROFILE</span><strong>{t.pending}</strong></div><div className="wallet-data"><span>NETWORK</span><strong>DATA PENDING</strong></div><div className="wallet-data"><span>ADDRESS</span><strong>NOT PUBLISHED</strong></div><div className="wallet-data"><span>BALANCE</span><strong>NOT PUBLISHED</strong></div></div><div id="crn-transactions-head" className="transactions-head"><div><h3>TRANSACTIONS</h3><p>{locale === "zh" ? "公开验证的交易记录将在此显示。" : "Publicly validated transaction records will appear here."}</p></div><button id="crn-search-transactions" className="button button-ghost small" type="button" onClick={() => setModal("search")}>SEARCH TXID</button></div><div id="crn-empty-transactions" className="empty-record panel"><span>NO PUBLIC TRANSACTION RECORDS</span><p>{locale === "zh" ? "交易哈希、钱包地址、链与浏览器链接将在独立核验后公开。" : "TXID, wallet address, chain and explorer links are intentionally withheld until independently verified."}</p></div></section>
+      <section id="evidence" className="section evidence-section" aria-labelledby="crn-evidence-title"><SectionHeading id="crn-evidence" index="05 / EVIDENCE" title={t.evidence} description={t.evidenceText} /><div id="crn-evidence-filter" className="evidence-filter" role="group" aria-label="Evidence categories">{["ALL", "ON-CHAIN", "COMMUNICATION", "PAYMENT", "LEGAL"].map((item) => <button id={`crn-evidence-filter-${item.toLowerCase()}`} className={`filter ${filter === item ? "active" : ""}`} type="button" onClick={() => setFilter(item)} key={item}>{item}</button>)}</div><div id="crn-evidence-grid" className="evidence-grid"><article id="crn-evidence-empty" className="evidence-card empty"><span>{filter === "ALL" ? "PUBLIC EVIDENCE INDEX" : filter}</span><h3>{t.pending}</h3><p>{locale === "zh" ? "尚无经审核可公开的材料。受控提交会先进入审核队列。" : "No reviewed, publishable material is available yet. Controlled submissions enter the review queue first."}</p></article></div><div id="crn-evidence-submit-card" className="evidence-submit-card"><div><span className="section-index">{t.intake}</span><h3>{t.haveMaterial}</h3><p>{t.intakeText}</p></div><button id="crn-evidence-open" className="button button-primary" type="button" onClick={() => setModal("evidence")}>{t.submit}<i>↗</i></button></div></section>
+      <section id="recovery" className="section recovery-section" aria-labelledby="crn-recovery-title"><div id="crn-recovery-panel" className="recovery-panel"><div><span className="section-index">06 / INVESTOR RECOVERY</span><h2 id="crn-recovery-title">{t.recovery}</h2><p>{t.recoveryText}</p></div><div id="crn-recovery-actions" className="recovery-actions"><button id="crn-recovery-victim" className="recovery-action" type="button" onClick={() => setModal("recovery")}><span>01</span><strong>{locale === "zh" ? "我是受影响者" : "I AM A VICTIM"}</strong><i>↗</i></button><button id="crn-recovery-evidence" className="recovery-action" type="button" onClick={() => setModal("evidence")}><span>02</span><strong>{locale === "zh" ? "我有材料" : "I HAVE EVIDENCE"}</strong><i>↗</i></button><button id="crn-recovery-information" className="recovery-action" type="button" onClick={() => setModal("recovery")}><span>03</span><strong>{locale === "zh" ? "我有信息" : "I HAVE INFORMATION"}</strong><i>↗</i></button></div></div></section>
+      <section id="updates" className="section updates-section" aria-labelledby="crn-updates-title"><SectionHeading id="crn-updates" index="07 / UPDATES" title={t.updates} description={t.updatesText} /><div id="crn-updates-grid" className="updates-grid"><article className="update-empty"><span>PUBLICATION QUEUE</span><h3>{t.pending}</h3><p>{locale === "zh" ? "未发布可公开更新。" : "No publishable updates are available."}</p></article><article className="update-empty"><span>MEDIA REFERENCES</span><h3>{t.pending}</h3><p>{locale === "zh" ? "来源识别后才会发布。" : "References appear after source identification."}</p></article></div></section>
+      <section id="bounty" className="section bounty-section" aria-labelledby="crn-bounty-title"><div id="crn-bounty-shell" className="bounty-shell"><div className="bounty-copy"><span className="section-index">08 / OPTIONAL MODULE</span><h2 id="crn-bounty-title">{t.bounty}</h2><p>{t.bountyText}</p><div className="mode-indicator"><span /> APP MODE: <strong>CORE</strong></div></div><div id="crn-bounty-state" className="bounty-state"><span>CAMPAIGN</span><strong>NO ACTIVE BOUNTY</strong><p>Fund, verification and claim functions are disabled until a reviewed campaign is configured.</p><button id="crn-bounty-open" className="button button-ghost" type="button" onClick={() => setModal("bounty")}>VIEW MODULE</button></div></div></section>
+      <section id="share" className="section share-section" aria-labelledby="crn-share-title"><div id="crn-share-panel" className="share-panel"><div><span className="section-index">09 / SPREAD VERIFIED INFORMATION</span><h2 id="crn-share-title">{t.shareTitle}</h2><p>{t.shareText}</p></div><div id="crn-share-actions" className="share-panel-actions"><button id="crn-share-open" className="button button-gold large" type="button" onClick={() => setModal("share")}>OPEN SHARE CENTER<i>↗</i></button><button id="crn-copy-case-link" className="button button-ghost" type="button" onClick={copyUrl}>{t.copyLink}</button><p className="share-assurance"><span>●</span> {locale === "zh" ? "分享不需要钱包或有效悬赏。" : "Sharing does not require a wallet or active bounty."}</p></div></div></section>
+      <section id="legal" className="legal section"><div id="crn-legal-mark" className="legal-mark">CRN</div><div id="crn-legal-copy"><span className="section-index">LEGAL NOTICE</span><p>{t.legal}</p></div></section></main>
+    <footer id="crn-footer" className="footer"><a id="crn-footer-brand" className="brand" href="#crn-top"><span className="brand-mark">CRN</span><span>CRN</span></a><p id="crn-footer-copy">{t.network} · {new Date().getFullYear()}</p><a id="crn-footer-legal" href="#legal">LEGAL NOTICE</a></footer><button id="crn-floating-share" className="floating-share" type="button" onClick={() => setModal("share")}><span>↗</span><span>SHARE</span></button><nav id="crn-mobile-navigation" className="mobile-bar" aria-label="Mobile navigation"><a href="#case">CASE</a><a href="#onchain">ON-CHAIN</a><a href="#evidence">EVIDENCE</a><button id="crn-mobile-share" type="button" onClick={() => setModal("share")}>SHARE</button></nav>
+    {(modal || drawer) && <button id="crn-modal-backdrop" className="modal-backdrop" type="button" aria-label={t.close} onClick={() => { setModal(null); setDrawer(null); }} />}
+    {drawer && <aside id="crn-detail-drawer" className="drawer is-open" role="dialog" aria-modal="true" aria-label="Record details"><button id="crn-drawer-close" className="drawer-close" type="button" onClick={() => setDrawer(null)}>×</button>{drawer.type === "timeline" ? <div id="crn-drawer-timeline"><span className="drawer-type">TIMELINE RECORD</span><h2>{displayTitle(drawer.item)}</h2><p>{displaySummary(drawer.item)}</p><div className="drawer-details"><div><span>DATE</span><strong>{drawer.item.date}</strong></div><div><span>STATUS</span><strong>UNDER REVIEW</strong></div><div><span>SOURCE</span><strong>CRN PUBLIC INTAKE</strong></div><div><span>UPDATED AT</span><strong>2026-09-21</strong></div></div></div> : <div id="crn-drawer-node"><span className="drawer-type">{drawer.item.type}</span><h2>{drawer.item.name}</h2><p>{locale === "zh" ? "仅展示公开且必要的信息，不包含敏感身份、联系方式、银行或凭证数据。" : "Only public, necessary details are displayed. No sensitive identity, contact, banking or credential information is included."}</p><div className="drawer-details"><div><span>ENTITY TYPE</span><strong>{drawer.item.type}</strong></div><div><span>PUBLIC NAME</span><strong>{drawer.item.name}</strong></div><div><span>STATUS</span><strong>{drawer.item.status}</strong></div><div><span>RELATIONSHIP</span><strong>{drawer.item.relationship}</strong></div></div>{drawer.item.links && <div className="drawer-explorer-links">{drawer.item.links.map((link, index) => <a id={`crn-explorer-link-${drawer.item.id}-${index + 1}`} className="button button-ghost small drawer-explorer-link" href={link.url} target="_blank" rel="noopener noreferrer" key={link.url + index}>{link.label}<i>↗</i></a>)}</div>}</div>}</aside>}
+    {modal === "share" && <section id="crn-share-modal" className="modal share-modal" role="dialog" aria-modal="true" aria-labelledby="crn-share-modal-title"><button id="crn-share-modal-close" className="modal-close" type="button" onClick={() => setModal(null)}>×</button><span className="section-index">DISTRIBUTION CENTER</span><h2 id="crn-share-modal-title">{t.shareTitle}</h2><p>{t.shareText}</p><div className="share-url"><input id="crn-share-url" aria-label="Case share URL" readOnly value={typeof window === "undefined" ? "" : window.location.href} /><button id="crn-copy-share-url" type="button" onClick={copyUrl}>COPY</button></div><div id="crn-social-grid" className="social-grid"><button onClick={() => share("x")} type="button">X</button><button onClick={() => share("whatsapp")} type="button">WHATSAPP</button><button onClick={() => share("email")} type="button">EMAIL</button><button onClick={() => share("native")} type="button">NATIVE SHARE</button></div><div className="share-tools"><div className="qr-placeholder"><strong>CRN</strong><span>CURRENT CASE URL</span></div><div><h3>SHARE CARD</h3><p>{locale === "zh" ? "案件链接可复制或使用系统分享功能分发。" : "Copy the case link or use your device’s sharing capability to distribute it."}</p><button className="button button-primary small" type="button" onClick={copyUrl}>COPY CASE LINK</button></div></div></section>}
+    {modal === "evidence" && <section id="crn-evidence-modal" className="modal form-modal" role="dialog" aria-modal="true" aria-labelledby="crn-evidence-modal-title"><button id="crn-evidence-modal-close" className="modal-close" type="button" onClick={() => setModal(null)}>×</button><span className="section-index">CONTROLLED INTAKE</span><h2 id="crn-evidence-modal-title">{t.submit}</h2><p className="warning-copy">{locale === "zh" ? "请勿提交私钥、助记词、密码或双因素验证码。材料将进入受控审核流程。" : "Do not submit private keys, seed phrases, passwords or 2FA codes. Material enters a controlled review workflow."}</p><EvidenceIntake locale={locale} caseCode={caseCode} /></section>}
+    {modal === "recovery" && <section id="crn-recovery-modal" className="modal form-modal" role="dialog" aria-modal="true" aria-labelledby="crn-recovery-modal-title"><button id="crn-recovery-modal-close" className="modal-close" type="button" onClick={() => setModal(null)}>×</button><span className="section-index">INVESTOR RECOVERY CENTER</span><h2 id="crn-recovery-modal-title">{locale === "zh" ? "提交信息" : "SHARE INFORMATION"}</h2><p>{locale === "zh" ? "受影响者或知情人可通过受控证据提交入口上传材料；每项材料均需登录并经过审核。" : "Affected parties and people with relevant information can submit material through the controlled evidence intake. Every submission requires sign-in and review."}</p><button id="crn-recovery-to-evidence" className="button button-primary" type="button" onClick={() => setModal("evidence")}>{t.submit}<i>↗</i></button></section>}
+    {modal === "bounty" && <section id="crn-bounty-modal" className="modal bounty-modal" role="dialog" aria-modal="true" aria-labelledby="crn-bounty-modal-title"><button id="crn-bounty-modal-close" className="modal-close" type="button" onClick={() => setModal(null)}>×</button><span className="section-index">OPTIONAL INCENTIVE MODULE</span><h2 id="crn-bounty-modal-title">BOUNTY IS OFF</h2><p>{locale === "zh" ? "当前为 Core 模式：案件浏览、受控材料提交与分享可用，悬赏合约与奖励申领保持关闭。" : "Core mode is active: case browsing, controlled submission and sharing are available, while campaign contracts and reward claims remain disabled."}</p><div className="bounty-demo-grid"><div><span>CAMPAIGN</span><strong>NO ACTIVE BOUNTY</strong></div><div><span>POOL</span><strong>DATA UNAVAILABLE</strong></div><div><span>CLAIM</span><strong>DISABLED</strong></div></div></section>}
+    {modal === "search" && <section id="crn-search-modal" className="modal search-modal" role="dialog" aria-modal="true" aria-labelledby="crn-search-modal-title"><button id="crn-search-modal-close" className="modal-close" type="button" onClick={() => setModal(null)}>×</button><span className="section-index">PUBLIC RECORD SEARCH</span><h2 id="crn-search-modal-title">{t.search}</h2><label className="search-field" htmlFor="crn-search-input"><input id="crn-search-input" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="CASE / TIMELINE / ENTITY" /></label><div id="crn-search-results" className="search-results">{query && (searchResults.length ? searchResults.map((result, index) => <button id={`crn-search-result-${index + 1}`} className="search-result" type="button" key={result.item.id} onClick={() => openDrawer(result.type === "timeline" ? { type: "timeline", item: result.item } : { type: "node", item: result.item })}><span>{result.type === "timeline" ? "TIMELINE" : result.item.type}</span><strong>{result.type === "timeline" ? displayTitle(result.item) : result.item.name}</strong><small>{result.type === "timeline" ? result.item.date : result.item.relationship}</small></button>) : <p>{t.noResult}</p>)}</div></section>}
+    {toast && <div id="crn-toast" className="toast-region"><button type="button" onClick={() => setToast("")}>{toast}</button></div>}</>;
 }
