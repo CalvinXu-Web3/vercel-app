@@ -176,6 +176,8 @@ export const evidenceItems = pgTable(
     submitterId: varchar("submitter_id", { length: 255 }).notNull(),
     title: varchar("title", { length: 240 }).notNull(),
     description: text("description"),
+    publicTitle: varchar("public_title", { length: 240 }),
+    publicDescription: text("public_description"),
     visibility: evidenceVisibility("visibility").notNull().default("restricted"),
     status: evidenceStatus("status").notNull().default("pending_upload"),
     reviewerId: varchar("reviewer_id", { length: 255 }),

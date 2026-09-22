@@ -1,7 +1,7 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db/client";
-import { caseRecords, timelineEvents } from "@/db/schema";
+import { caseRecords, evidenceItems, timelineEvents } from "@/db/schema";
 import { errorResponse, HttpError } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +41,27 @@ export async function GET(
       )
       .orderBy(asc(timelineEvents.occurredAt));
 
-    return NextResponse.json({ case: caseRecord, timeline });
+    // Only the editor-approved summary is public. The original file, submitter,
+    // storage metadata, and review history never leave the restricted workflow.
+    const evidence = await database
+      .select({
+        id: evidenceItems.id,
+        title: evidenceItems.publicTitle,
+        description: evidenceItems.publicDescription,
+        publishedAt: evidenceItems.reviewedAt,
+      })
+      .from(evidenceItems)
+      .where(
+        and(
+          eq(evidenceItems.caseId, caseRecord.id),
+          eq(evidenceItems.status, "approved"),
+          eq(evidenceItems.visibility, "redacted_public"),
+          isNotNull(evidenceItems.publicTitle),
+        ),
+      )
+      .orderBy(desc(evidenceItems.reviewedAt));
+
+    return NextResponse.json({ case: caseRecord, timeline, evidence });
   } catch (error) {
     return errorResponse(error);
   }

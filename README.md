@@ -54,8 +54,9 @@ evidence to public IPFS.
 - `PINATA_JWT`, `DATABASE_URL`, and `CLERK_SECRET_KEY` are server-only.
 - The Pinata JWT must never use a `NEXT_PUBLIC_` prefix.
 - The public case API returns only `is_public=true` records.
-- Submissions are always `restricted` and change to public only through an explicit
-  reviewer workflow that is not yet exposed in the public UI.
+- Submissions are always `restricted`. A reviewer or admin must write a separate,
+  redacted public title and summary before publishing at `/review/evidence`; source
+  files and original submission metadata remain restricted.
 - Reviewer access is checked in the Route Handler, not merely hidden in the browser.
 - The database stores searchable metadata, SHA-256 hashes, CIDs, encryption envelopes,
   state transitions, and audit events; it never stores evidence file bytes.
@@ -65,8 +66,10 @@ evidence to public IPFS.
 Implemented: React/Next.js shell, Chinese/English UI, Neon/Drizzle relational schema,
 initial case seed, public read endpoint, Clerk-backed contributor/reviewer roles,
 short-lived Pinata upload intent, encrypted-public or Private-IPFS policy validation,
-direct upload completion, and reviewer-only Private-IPFS access-link issuance.
+direct upload completion, a reviewer-only release queue at `/review/evidence`,
+reviewer-only Private-IPFS access-link issuance, and public display of approved
+redacted summaries.
 
 Next acceptance slice: import the remainder of the current public archive into
-PostgreSQL, add the reviewer queue and redaction workflow, then port the existing
-static interactions one section at a time before production cutover.
+PostgreSQL, then port the existing static interactions one section at a time before
+production cutover.

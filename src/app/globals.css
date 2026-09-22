@@ -270,6 +270,32 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .form-modal .evidence-form input[type=file] { color: var(--muted); font-size: .78rem; }
 .form-modal .primary-button { width: fit-content; margin-top: 12px; }
 .form-modal .form-status { margin: 9px 0 0; color: var(--muted); font-size: .82rem; }
+.review-page { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 78px 0 100px; }
+.review-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+.review-page-header h1 { margin: 10px 0; font-size: clamp(2rem, 5vw, 4rem); letter-spacing: -.055em; }
+.review-page-header p { max-width: 720px; margin: 0; color: var(--muted); }
+.review-message, .review-empty { margin: 22px 0; border: 1px solid var(--border); padding: 15px 17px; color: var(--muted); background: rgba(255,255,255,.025); }
+.review-list { display: grid; gap: 16px; margin-top: 22px; }
+.review-card { border: 1px solid var(--border); padding: 24px; background: linear-gradient(145deg, rgba(17,25,36,.9), rgba(8,13,20,.76)); }
+.review-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.review-card-heading > div:first-child > span, .review-state span, .review-meta dt { color: var(--blue); font-family: var(--mono); font-size: .64rem; letter-spacing: .09em; }
+.review-card h2 { margin: 8px 0 0; font-size: 1.55rem; font-weight: 500; }
+.review-state { display: grid; gap: 7px; text-align: right; }
+.review-state strong { color: var(--gold); font-family: var(--mono); font-size: .68rem; letter-spacing: .08em; }
+.review-description { max-width: 780px; margin: 18px 0; color: var(--muted); }
+.review-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin: 0; border-top: 1px solid var(--border); padding-top: 17px; }
+.review-meta div { min-width: 0; }
+.review-meta dt { margin-bottom: 6px; }
+.review-meta dd { overflow-wrap: anywhere; margin: 0; color: var(--text); font-size: .8rem; }
+.public-summary-fields { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin: 20px 0 0; border: 1px solid rgba(77,163,255,.35); padding: 16px; }
+.public-summary-fields legend { padding: 0 5px; color: var(--blue); font-family: var(--mono); font-size: .64rem; letter-spacing: .09em; }
+.public-summary-fields label { display: grid; gap: 7px; color: var(--muted); font-family: var(--mono); font-size: .64rem; letter-spacing: .07em; }
+.public-summary-fields input, .public-summary-fields textarea { width: 100%; border: 1px solid var(--border); padding: 10px; color: var(--text); background: rgba(255,255,255,.025); font: inherit; letter-spacing: normal; }
+.public-summary-fields textarea { resize: vertical; }
+.review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 22px; }
+.review-file-note { color: var(--muted); font-size: .78rem; }
+.review-danger { border: 1px solid rgba(244,119,119,.45); padding: 9px 12px; color: #f4a4a4; background: transparent; font: inherit; font-size: .75rem; cursor: pointer; }
+.review-danger:disabled { cursor: wait; opacity: .5; }
 .bounty-demo-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 25px; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
 .bounty-demo-grid div { display: grid; min-height: 105px; align-content: center; gap: 9px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 16px; }
 .bounty-demo-grid span { color: var(--muted); font-family: var(--mono); font-size: .56rem; letter-spacing: .08em; }
@@ -346,6 +372,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .evidence-grid { grid-template-columns: 1fr; }
   .evidence-submit-card { display: block; padding: 23px; }
   .evidence-submit-card .button { margin-top: 18px; }
+  .review-page { width: min(100% - 28px, 1180px); padding-top: 48px; }
+  .review-page-header, .review-card-heading { display: grid; }
+  .review-meta { grid-template-columns: 1fr 1fr; }
+  .public-summary-fields { grid-template-columns: 1fr; }
   .recovery-panel { gap: 32px; padding: 46px 20px; }
   .updates-grid { grid-template-columns: 1fr; }
   .share-panel { gap: 27px; padding: 28px 22px; }
