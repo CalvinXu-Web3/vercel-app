@@ -82,7 +82,31 @@ function ChainRelationshipDrawer({
   locale: Locale;
   onClose: () => void;
 }) {
-  return <aside id="crn-chain-detail-drawer" className="drawer is-open" role="dialog" aria-modal="true" aria-label="Chain relationship record"><button id="crn-chain-drawer-close" className="drawer-close" type="button" onClick={onClose}>×</button><span className="drawer-type">CHAIN RELATIONSHIP RECORD</span><h2>{item.name}</h2><p>{locale === "zh" ? "此抽屉仅展示链上关系示意中的公开参考节点，不构成对交易、地址控制权或资产归属的事实认定。" : "This drawer shows public reference nodes from the on-chain relationship schematic. It is not a finding of transactions, address control, or asset ownership."}</p><div className="drawer-details"><div><span>NODE ROLE</span><strong>{item.type}</strong></div><div><span>TRACKING STATUS</span><strong>{item.status}</strong></div><div><span>REFERENCE RELATIONSHIP</span><strong>{item.relationship}</strong></div><div><span>PUBLIC RECORD</span><strong>{item.name}</strong></div></div>{item.links && <div className="drawer-explorer-links">{item.links.map((link, index) => <a id={`crn-chain-explorer-link-${item.id}-${index + 1}`} className="button button-ghost small drawer-explorer-link" href={link.url} target="_blank" rel="noopener noreferrer" key={link.url + index}>{link.label}<i>↗</i></a>)}</div>}</aside>;
+  return (
+    <aside id="crn-chain-detail-drawer" className="drawer chain-drawer is-open" role="dialog" aria-modal="true" aria-label="Chain relationship record">
+      <button id="crn-chain-drawer-close" className="drawer-close" type="button" onClick={onClose}>×</button>
+      <header className="chain-drawer-header">
+        <span className="drawer-type">ON-CHAIN RELATIONSHIP</span>
+        <h2>{item.name}</h2>
+        <div className="chain-drawer-state"><span>{item.type}</span><strong>{item.status}</strong></div>
+      </header>
+      <section className="chain-relationship-map" aria-label="On-chain reference relationship">
+        <div><span>NODE</span><strong>{item.name}</strong></div>
+        <i aria-hidden="true">→</i>
+        <div><span>PUBLIC REFERENCE</span><strong>{item.relationship}</strong></div>
+      </section>
+      <section className="chain-drawer-brief">
+        <span>READING THIS NODE</span>
+        <p>{locale === "zh" ? "该节点用于呈现可公开核验的链上参考关系。它不构成对交易、地址控制权或资产归属的事实认定。" : "This node presents a publicly verifiable on-chain reference relationship. It is not a finding of transactions, address control, or asset ownership."}</p>
+      </section>
+      <dl className="chain-drawer-facts">
+        <div><dt>NODE ROLE</dt><dd>{item.type}</dd></div>
+        <div><dt>TRACKING STATE</dt><dd>{item.status}</dd></div>
+        <div><dt>REFERENCE LABEL</dt><dd>{item.relationship}</dd></div>
+      </dl>
+      {item.links && <section className="chain-source-links"><div><span>PUBLIC CHAIN REFERENCES</span><p>{locale === "zh" ? "以下链接通往对应公开浏览器记录。" : "These links open the corresponding public explorer records."}</p></div><div className="drawer-explorer-links">{item.links.map((link, index) => <a id={`crn-chain-explorer-link-${item.id}-${index + 1}`} className="button button-ghost small drawer-explorer-link" href={link.url} target="_blank" rel="noopener noreferrer" key={link.url + index}>{link.label}<i>↗</i></a>)}</div></section>}
+    </aside>
+  );
 }
 
 function EntityProfileDrawer({
@@ -94,7 +118,33 @@ function EntityProfileDrawer({
   locale: Locale;
   onClose: () => void;
 }) {
-  return <aside id="crn-entity-detail-drawer" className="drawer is-open" role="dialog" aria-modal="true" aria-label="Entity profile"><button id="crn-entity-drawer-close" className="drawer-close" type="button" onClick={onClose}>×</button><span className="drawer-type">PERSON / ENTITY PROFILE</span><h2>{item.name}</h2><p>{locale === "zh" ? "此抽屉仅展示人物／实体网络中的公开且必要资料，不包含敏感身份、联系方式、银行或凭证数据。" : "This drawer shows only public, necessary information from the person and entity network. It excludes sensitive identity, contact, banking, and credential data."}</p><div className="drawer-details"><div><span>PROFILE TYPE</span><strong>{item.type}</strong></div><div><span>PUBLIC NAME</span><strong>{item.name}</strong></div><div><span>RECORD STATUS</span><strong>{item.status}</strong></div><div><span>NETWORK RELATIONSHIP</span><strong>{item.relationship}</strong></div></div></aside>;
+  return (
+    <aside id="crn-entity-detail-drawer" className="drawer entity-drawer is-open" role="dialog" aria-modal="true" aria-label="Entity profile">
+      <button id="crn-entity-drawer-close" className="drawer-close" type="button" onClick={onClose}>×</button>
+      <header className="entity-drawer-header">
+        <span className="drawer-type">PERSON / ENTITY PROFILE</span>
+        <div className="entity-identity-mark" aria-hidden="true">{item.type.slice(0, 1)}</div>
+        <div>
+          <span>PUBLIC PROFILE</span>
+          <h2>{item.name}</h2>
+        </div>
+      </header>
+      <section className="entity-role-card">
+        <span>{locale === "zh" ? "网络角色" : "NETWORK ROLE"}</span>
+        <strong>{item.type}</strong>
+        <p>{item.relationship}</p>
+      </section>
+      <dl className="entity-profile-facts">
+        <div><dt>{locale === "zh" ? "公开名称" : "PUBLIC NAME"}</dt><dd>{item.name}</dd></div>
+        <div><dt>{locale === "zh" ? "记录状态" : "RECORD STATUS"}</dt><dd>{item.status}</dd></div>
+        <div><dt>{locale === "zh" ? "资料范围" : "DISCLOSURE SCOPE"}</dt><dd>{locale === "zh" ? "公开且必要的信息" : "Public and necessary information only"}</dd></div>
+      </dl>
+      <section className="entity-disclosure-note">
+        <span>DISCLOSURE STANDARD</span>
+        <p>{locale === "zh" ? "本档案不包含联系方式、住址、银行信息、凭证或其他敏感个人资料。" : "This profile excludes contact details, addresses, banking data, credentials, and other sensitive personal information."}</p>
+      </section>
+    </aside>
+  );
 }
 
 export function CaseArchive() {
