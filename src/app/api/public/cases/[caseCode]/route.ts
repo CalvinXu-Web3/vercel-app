@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db/client";
 import {
@@ -7,6 +7,7 @@ import {
   entityRelations,
   evidenceItems,
   timelineEvents,
+  victimSignatures,
   wallets,
 } from "@/db/schema";
 import { errorResponse, HttpError } from "@/lib/http";
@@ -30,7 +31,7 @@ export async function GET(
       throw new HttpError(404, "Public case not found.");
     }
 
-    const [timeline, evidence, publicEntities, relations, publicWallets] =
+    const [timeline, evidence, publicEntities, relations, publicWallets, signatureTotals, publicSignatures] =
       await Promise.all([
         database
           .select({
@@ -113,6 +114,32 @@ export async function GET(
               eq(wallets.isPublic, true),
             ),
           ),
+        database
+          .select({ approvedCount: count() })
+          .from(victimSignatures)
+          .where(
+            and(
+              eq(victimSignatures.caseId, caseRecord.id),
+              eq(victimSignatures.status, "approved"),
+            ),
+          ),
+        database
+          .select({
+            id: victimSignatures.id,
+            alias: victimSignatures.alias,
+            visibility: victimSignatures.visibility,
+            approvedAt: victimSignatures.reviewedAt,
+          })
+          .from(victimSignatures)
+          .where(
+            and(
+              eq(victimSignatures.caseId, caseRecord.id),
+              eq(victimSignatures.status, "approved"),
+              ne(victimSignatures.visibility, "count_only"),
+            ),
+          )
+          .orderBy(desc(victimSignatures.reviewedAt))
+          .limit(12),
       ]);
 
     return NextResponse.json({
@@ -122,6 +149,8 @@ export async function GET(
       entities: publicEntities,
       relations,
       wallets: publicWallets,
+      approvedSignatureCount: signatureTotals[0]?.approvedCount ?? 0,
+      signatures: publicSignatures,
     });
   } catch (error) {
     return errorResponse(error);

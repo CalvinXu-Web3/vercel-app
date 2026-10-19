@@ -49,6 +49,19 @@ export const evidenceStorageMode = pgEnum("evidence_storage_mode", [
   "encrypted-public-ipfs",
 ]);
 
+export const signatureVisibility = pgEnum("signature_visibility", [
+  "anonymous_public",
+  "alias_public",
+  "count_only",
+]);
+
+export const signatureStatus = pgEnum("signature_status", [
+  "pending_review",
+  "approved",
+  "rejected",
+  "revoked",
+]);
+
 export const caseRecords = pgTable(
   "cases",
   {
@@ -224,6 +237,38 @@ export const evidenceFiles = pgTable(
   (table) => [
     index("evidence_files_evidence_idx").on(table.evidenceId),
     uniqueIndex("evidence_files_cid_key").on(table.cid),
+  ],
+);
+
+export const victimSignatures = pgTable(
+  "victim_signatures",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => caseRecords.id, { onDelete: "restrict" }),
+    signerId: varchar("signer_id", { length: 255 }).notNull(),
+    alias: varchar("alias", { length: 48 }),
+    visibility: signatureVisibility("visibility")
+      .notNull()
+      .default("anonymous_public"),
+    status: signatureStatus("status").notNull().default("pending_review"),
+    consentedAt: timestamp("consented_at", { withTimezone: true }).notNull(),
+    reviewerId: varchar("reviewer_id", { length: 255 }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("victim_signatures_case_signer_key").on(
+      table.caseId,
+      table.signerId,
+    ),
+    index("victim_signatures_case_status_idx").on(table.caseId, table.status),
   ],
 );
 

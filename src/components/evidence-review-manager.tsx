@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type ReviewAction = "publish" | "restrict" | "reject";
 
@@ -128,9 +129,12 @@ export function EvidenceReviewManager() {
           <h1>材料发布管理</h1>
           <p>仅可发布经过审核的标题和说明；原始文件、提交者身份及存储标识始终保持受限。</p>
         </div>
-        <button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>
-          刷新队列
-        </button>
+        <div className="review-header-actions">
+          <Link className="button button-ghost small" href="/review/signatures">联署审核</Link>
+          <button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>
+            刷新队列
+          </button>
+        </div>
       </header>
 
       {message && <p className="review-message" role="status">{message}</p>}

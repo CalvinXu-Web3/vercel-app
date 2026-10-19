@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { EvidenceIntake } from "@/components/evidence-intake";
+import { VictimSignatureWall } from "@/components/victim-signature-wall";
 
 type Locale = "zh" | "en";
 type ModalName = "share" | "evidence" | "recovery" | "bounty" | "search" | null;
@@ -53,6 +54,12 @@ type PublicWallet = {
   explorerUrl: string;
   status: string;
 };
+type PublicSignature = {
+  id: string;
+  alias: string | null;
+  visibility: "anonymous_public" | "alias_public";
+  approvedAt: string | null;
+};
 type PublicArchive = {
   case: {
     code: string;
@@ -68,6 +75,8 @@ type PublicArchive = {
   entities: PublicEntity[];
   relations: PublicRelation[];
   wallets: PublicWallet[];
+  approvedSignatureCount: number;
+  signatures: PublicSignature[];
 };
 
 const caseCode = "CRN-2026-0703";
@@ -289,7 +298,16 @@ export function CaseArchive() {
   const t = copy[locale];
   useEffect(() => { const timer = window.setTimeout(() => setBootVisible(false), 950); const onScroll = () => setScrolled(window.scrollY > 18); onScroll(); window.addEventListener("scroll", onScroll, { passive: true }); return () => { window.clearTimeout(timer); window.removeEventListener("scroll", onScroll); }; }, []);
   useEffect(() => { document.documentElement.lang = locale === "zh" ? "zh-CN" : "en"; }, [locale]);
-  useEffect(() => { let active = true; fetch(`/api/public/cases/${caseCode}`, { cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error("Unable to load the public case."); return await response.json() as PublicArchive; }).then((payload) => { if (active) setArchive(payload); }).catch(() => { if (active) setArchive(null); }); return () => { active = false; }; }, []);
+  const loadArchive = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/public/cases/${caseCode}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Unable to load the public case.");
+      setArchive(await response.json() as PublicArchive);
+    } catch {
+      setArchive(null);
+    }
+  }, []);
+  useEffect(() => { void loadArchive(); }, [loadArchive]);
   const timelineItems = useMemo(() => archive?.timeline.length ? toTimelineItems(archive.timeline) : timeline, [archive]);
   const entityNodes = useMemo(() => archive?.entities.length ? toEntityNodes(archive.entities, archive.relations) : entityFallbackNodes.filter((item) => item.id !== "case"), [archive]);
   const caseNode = useMemo<NetworkNode>(() => archive ? { id: "case", type: locale === "zh" ? "案件档案" : "CASE FILE", name: locale === "zh" ? archive.case.titleZh : archive.case.titleEn, status: archive.case.status, relationship: "PUBLIC CASE RECORD" } : entityFallbackNodes[0], [archive, locale]);
@@ -310,7 +328,13 @@ export function CaseArchive() {
       <section id="entities" className="section network-section" aria-labelledby="crn-entities-title"><SectionHeading id="crn-entities" index="03 / RELATIONSHIPS" title={t.relationships} description={t.relationshipsText} /><div id="crn-entity-panel" className="network-panel panel"><div id="crn-entity-legend" className="panel-topline"><span><i className="legend-dot case" /> CASE</span><span><i className="legend-dot pending" /> {t.pending}</span><span className="panel-note">SELECT A NODE FOR PUBLIC PROFILE</span></div><div id="crn-entity-network" className="entity-network"><EntityNetwork caseNode={caseNode} nodes={entityNodes} relations={publicRelations} onNode={(item) => openDrawer({ type: "entity-node", item })} /></div></div></section>
       <section id="onchain" className="section onchain-section" aria-labelledby="crn-onchain-title"><SectionHeading id="crn-onchain" index="04 / ON-CHAIN" title={t.onchain} description={t.onchainText} /><div id="crn-flow-panel" className="flow-panel panel"><div id="crn-flow-note" className="flow-note"><span className="status-chip pending">{t.pending}</span><p>{locale === "zh" ? "这是调查结构视图，并非交易或钱包归属的事实陈述。" : "This is a structural investigation view, not a statement of transactions or wallet ownership."}</p></div><div id="crn-fund-flow" className="fund-flow"><span>CASE</span><i>→</i><span>4#</span><i>→</i><span>1#</span><i>→</i><span>BINANCE / OKX</span></div></div><div id="crn-wallet-profile" className="wallet-profile panel"><div className="wallet-lead"><span>PUBLIC ON-CHAIN PROFILE</span><strong>{t.pending}</strong></div><div className="wallet-data"><span>NETWORK</span><strong>DATA PENDING</strong></div><div className="wallet-data"><span>ADDRESS</span><strong>NOT PUBLISHED</strong></div><div className="wallet-data"><span>BALANCE</span><strong>NOT PUBLISHED</strong></div></div><div id="crn-transactions-head" className="transactions-head"><div><h3>TRANSACTIONS</h3><p>{locale === "zh" ? "公开验证的交易记录将在此显示。" : "Publicly validated transaction records will appear here."}</p></div><button id="crn-search-transactions" className="button button-ghost small" type="button" onClick={() => setModal("search")}>SEARCH TXID</button></div><div id="crn-empty-transactions" className="empty-record panel"><span>NO PUBLIC TRANSACTION RECORDS</span><p>{locale === "zh" ? "交易哈希、钱包地址、链与浏览器链接将在独立核验后公开。" : "TXID, wallet address, chain and explorer links are intentionally withheld until independently verified."}</p></div></section>
       <section id="evidence" className="section evidence-section" aria-labelledby="crn-evidence-title"><SectionHeading id="crn-evidence" index="05 / EVIDENCE" title={t.evidence} description={t.evidenceText} /><div id="crn-evidence-grid" className="evidence-grid">{publicEvidence.length ? publicEvidence.map((item) => <article id={`crn-evidence-${item.id}`} className="evidence-card" key={item.id}><span>PUBLIC EVIDENCE · REVIEWED SUMMARY</span><h3>{item.title}</h3><p>{item.description || (locale === "zh" ? "该材料摘要已经审核后公开；原始文件仍处于受控访问中。" : "This reviewed summary is public; the original file remains under controlled access.")}</p></article>) : <article id="crn-evidence-empty" className="evidence-card empty"><span>PUBLIC EVIDENCE INDEX</span><h3>{t.pending}</h3><p>{locale === "zh" ? "尚无经审核可公开的材料。受控提交会先进入审核队列。" : "No reviewed, publishable material is available yet. Controlled submissions enter the review queue first."}</p></article>}</div><div id="crn-evidence-submit-card" className="evidence-submit-card"><div><span className="section-index">{t.intake}</span><h3>{t.haveMaterial}</h3><p>{t.intakeText}</p></div><button id="crn-evidence-open" className="button button-primary" type="button" onClick={() => setModal("evidence")}>{t.submit}<i>↗</i></button></div></section>
-      <section id="recovery" className="section recovery-section" aria-labelledby="crn-recovery-title"><div id="crn-recovery-panel" className="recovery-panel"><div><span className="section-index">06 / INVESTOR RECOVERY</span><h2 id="crn-recovery-title">{t.recovery}</h2><p>{t.recoveryText}</p></div><div id="crn-recovery-actions" className="recovery-actions"><button id="crn-recovery-victim" className="recovery-action" type="button" onClick={() => setModal("recovery")}><span>01</span><strong>{locale === "zh" ? "我是受影响者" : "I AM A VICTIM"}</strong><i>↗</i></button><button id="crn-recovery-evidence" className="recovery-action" type="button" onClick={() => setModal("evidence")}><span>02</span><strong>{locale === "zh" ? "我有材料" : "I HAVE EVIDENCE"}</strong><i>↗</i></button><button id="crn-recovery-information" className="recovery-action" type="button" onClick={() => setModal("recovery")}><span>03</span><strong>{locale === "zh" ? "我有信息" : "I HAVE INFORMATION"}</strong><i>↗</i></button></div></div></section>
+      <section id="recovery" className="section recovery-section" aria-labelledby="crn-recovery-title">
+        <div id="crn-recovery-panel" className="recovery-panel">
+          <div><span className="section-index">06 / INVESTOR RECOVERY</span><h2 id="crn-recovery-title">{t.recovery}</h2><p>{t.recoveryText}</p></div>
+          <VictimSignatureWall caseCode={caseCode} locale={locale} approvedCount={archive?.approvedSignatureCount ?? 0} signatures={archive?.signatures ?? []} onChanged={() => { void loadArchive(); }} />
+          <div id="crn-recovery-actions" className="recovery-actions"><button id="crn-recovery-victim" className="recovery-action" type="button" onClick={() => setModal("recovery")}><span>01</span><strong>{locale === "zh" ? "我是受影响者" : "I AM A VICTIM"}</strong><i>↗</i></button><button id="crn-recovery-evidence" className="recovery-action" type="button" onClick={() => setModal("evidence")}><span>02</span><strong>{locale === "zh" ? "我有材料" : "I HAVE EVIDENCE"}</strong><i>↗</i></button><button id="crn-recovery-information" className="recovery-action" type="button" onClick={() => setModal("recovery")}><span>03</span><strong>{locale === "zh" ? "我有信息" : "I HAVE INFORMATION"}</strong><i>↗</i></button></div>
+        </div>
+      </section>
       <section id="updates" className="section updates-section" aria-labelledby="crn-updates-title"><SectionHeading id="crn-updates" index="07 / UPDATES" title={t.updates} description={t.updatesText} /><div id="crn-updates-grid" className="updates-grid"><article className="update-empty"><span>PUBLICATION QUEUE</span><h3>{t.pending}</h3><p>{locale === "zh" ? "未发布可公开更新。" : "No publishable updates are available."}</p></article><article className="update-empty"><span>MEDIA REFERENCES</span><h3>{t.pending}</h3><p>{locale === "zh" ? "来源识别后才会发布。" : "References appear after source identification."}</p></article></div></section>
       <section id="bounty" className="section bounty-section" aria-labelledby="crn-bounty-title"><div id="crn-bounty-shell" className="bounty-shell"><div className="bounty-copy"><span className="section-index">08 / OPTIONAL MODULE</span><h2 id="crn-bounty-title">{t.bounty}</h2><p>{t.bountyText}</p><div className="mode-indicator"><span /> APP MODE: <strong>CORE</strong></div></div><div id="crn-bounty-state" className="bounty-state"><span>CAMPAIGN</span><strong>NO ACTIVE BOUNTY</strong><p>Fund, verification and claim functions are disabled until a reviewed campaign is configured.</p><button id="crn-bounty-open" className="button button-ghost" type="button" onClick={() => setModal("bounty")}>VIEW MODULE</button></div></div></section>
       <section id="share" className="section share-section" aria-labelledby="crn-share-title"><div id="crn-share-panel" className="share-panel"><div><span className="section-index">09 / SPREAD VERIFIED INFORMATION</span><h2 id="crn-share-title">{t.shareTitle}</h2><p>{t.shareText}</p></div><div id="crn-share-actions" className="share-panel-actions"><button id="crn-share-open" className="button button-gold large" type="button" onClick={() => setModal("share")}>OPEN SHARE CENTER<i>↗</i></button><button id="crn-copy-case-link" className="button button-ghost" type="button" onClick={copyUrl}>{t.copyLink}</button><p className="share-assurance"><span>●</span> {locale === "zh" ? "分享不需要钱包或有效悬赏。" : "Sharing does not require a wallet or active bounty."}</p></div></div></section>
