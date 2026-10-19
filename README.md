@@ -36,6 +36,12 @@ evidence to public IPFS.
 ## Required setup
 
 1. Copy `.env.example` to `.env.local`; fill every `REPLACE_ME` value.
+
+   Set `NEXT_PUBLIC_X_MENTION_HANDLES` to the comma-separated X usernames that
+   visitors may mention from the sharing centre (without `@`), for example
+   `account_one,account_two`. The legacy single-account
+   `NEXT_PUBLIC_X_MENTION_HANDLE` value remains supported. These are public values,
+   not secrets.
 2. In Neon, create a database and set `DATABASE_URL`.
 3. In Clerk, create the application, set the two Clerk keys, then add the relevant
    Clerk user IDs to the reviewer/admin allowlists.
