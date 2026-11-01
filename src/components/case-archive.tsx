@@ -308,11 +308,11 @@ export function CaseArchive() {
     }
   }, []);
   useEffect(() => { void loadArchive(); }, [loadArchive]);
-  const timelineItems = useMemo(() => archive ? toTimelineItems(archive.timeline) : timeline, [archive]);
-  const entityNodes = useMemo(() => archive ? toEntityNodes(archive.entities, archive.relations) : entityFallbackNodes.filter((item) => item.id !== "case"), [archive]);
-  const caseNode = useMemo<NetworkNode>(() => archive ? { id: "case", type: locale === "zh" ? "案件档案" : "CASE FILE", name: locale === "zh" ? archive.case.titleZh : archive.case.titleEn, status: archive.case.status, relationship: "PUBLIC CASE RECORD" } : entityFallbackNodes[0], [archive, locale]);
+  const timelineItems = useMemo(() => archive?.timeline.length ? toTimelineItems(archive.timeline) : timeline, [archive]);
+  const entityNodes = useMemo(() => archive?.entities.length ? toEntityNodes(archive.entities, archive.relations) : entityFallbackNodes.filter((item) => item.id !== "case"), [archive]);
+  const caseNode = useMemo<NetworkNode>(() => archive?.entities.length ? { id: "case", type: locale === "zh" ? "案件档案" : "CASE FILE", name: locale === "zh" ? archive.case.titleZh : archive.case.titleEn, status: archive.case.status, relationship: "PUBLIC CASE RECORD" } : entityFallbackNodes[0], [archive, locale]);
   const publicEvidence = archive?.evidence ?? [];
-  const publicRelations = archive ? archive.relations : [];
+  const publicRelations = archive?.entities.length ? archive.relations : [];
   const searchResults = useMemo(() => { const needle = query.trim().toLocaleLowerCase(); if (!needle) return []; const matchingTimeline = timelineItems.filter((item) => `${item.date} ${item.zhTitle} ${item.enTitle} ${item.zhSummary} ${item.enSummary}`.toLocaleLowerCase().includes(needle)).map((item) => ({ type: "timeline" as const, item })); const matchingEntities = entityNodes.filter((item) => `${item.name} ${item.type} ${item.relationship}`.toLocaleLowerCase().includes(needle)).map((item) => ({ type: "entity-node" as const, item })); const matchingChainNodes = chainNodes.filter((item) => `${item.name} ${item.type} ${item.relationship}`.toLocaleLowerCase().includes(needle)).map((item) => ({ type: "chain-node" as const, item })); return [...matchingTimeline, ...matchingEntities, ...matchingChainNodes]; }, [entityNodes, query, timelineItems]);
   const openDrawer = (content: DrawerContent) => { setModal(null); setDrawer(content); };
   const displayTitle = (item: TimelineItem) => locale === "zh" ? item.zhTitle : item.enTitle;
