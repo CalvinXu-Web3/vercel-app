@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import {
   SignInButton,
   Show,
@@ -149,9 +149,11 @@ async function responseMessage(response: Response) {
 export function EvidenceIntake({
   locale,
   caseCode,
+  caseId,
 }: {
   locale: Locale;
-  caseCode: string;
+  caseCode?: string;
+  caseId?: string;
 }) {
   const t = labels[locale];
   const [file, setFile] = useState<File | null>(null);
@@ -159,9 +161,22 @@ export function EvidenceIntake({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<string>(t.idle);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const idempotencyKey = useRef(crypto.randomUUID());
+  const formRef = useRef<HTMLFormElement>(null);
+  const preparedUpload = useRef<{
+    source: File;
+    mode: StorageMode;
+    value: PreparedUpload;
+  } | null>(null);
+
+  const rotateRequestKey = () => {
+    idempotencyKey.current = crypto.randomUUID();
+  };
 
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
     setFile(event.target.files?.[0] ?? null);
+    preparedUpload.current = null;
+    rotateRequestKey();
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -175,9 +190,18 @@ export function EvidenceIntake({
     try {
       const storageMode = process.env
         .NEXT_PUBLIC_EVIDENCE_STORAGE_MODE as StorageMode | undefined;
-      let prepared: PreparedUpload;
+      if (storageMode !== "encrypted-public-ipfs" && storageMode !== "private-ipfs") {
+        throw new Error(
+          locale === "zh"
+            ? "证据存储模式尚未配置。"
+            : "Evidence storage mode is not configured.",
+        );
+      }
+      let prepared = preparedUpload.current?.source === file && preparedUpload.current.mode === storageMode
+        ? preparedUpload.current.value
+        : null;
 
-      if (storageMode === "encrypted-public-ipfs") {
+      if (!prepared && storageMode === "encrypted-public-ipfs") {
         const publicKey = process.env.NEXT_PUBLIC_EVIDENCE_PUBLIC_KEY_JWK;
         if (!publicKey) {
           throw new Error(
@@ -188,21 +212,21 @@ export function EvidenceIntake({
         }
         setStatus(t.preparing);
         prepared = await encryptForPublicIpfs(file, publicKey);
-      } else if (storageMode === "private-ipfs") {
+      } else if (!prepared && storageMode === "private-ipfs") {
         prepared = { file, contentSha256: await sha256(file) };
-      } else {
-        throw new Error(
-          locale === "zh"
-            ? "证据存储模式尚未配置。"
-            : "Evidence storage mode is not configured.",
-        );
       }
+      if (!prepared) throw new Error("The evidence file could not be prepared.");
+      preparedUpload.current = { source: file, mode: storageMode, value: prepared };
 
       const intentResponse = await fetch("/api/evidence/upload-intents", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey.current,
+        },
         body: JSON.stringify({
           caseCode,
+          caseId,
           title: title.trim(),
           description: description.trim() || undefined,
           originalFilename: file.name,
@@ -216,14 +240,30 @@ export function EvidenceIntake({
       });
 
       if (!intentResponse.ok) {
+        if (intentResponse.status === 409) {
+          idempotencyKey.current = crypto.randomUUID();
+        }
         throw new Error(await responseMessage(intentResponse));
       }
 
       const intent = (await intentResponse.json()) as {
         evidenceFileId: string;
-        uploadUrl: string;
+        uploadUrl?: string;
+        completed?: boolean;
         pinataNetwork: "public" | "private";
       };
+
+      if (intent.completed) {
+        setStatus(t.success);
+        setFile(null);
+        setTitle("");
+        setDescription("");
+        formRef.current?.reset();
+        preparedUpload.current = null;
+        rotateRequestKey();
+        return;
+      }
+      if (!intent.uploadUrl) throw new Error("The upload service returned no upload URL.");
 
       setStatus(t.uploading);
       const formData = new FormData();
@@ -258,6 +298,9 @@ export function EvidenceIntake({
       setFile(null);
       setTitle("");
       setDescription("");
+      formRef.current?.reset();
+      idempotencyKey.current = crypto.randomUUID();
+      preparedUpload.current = null;
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unexpected upload error.");
     } finally {
@@ -288,7 +331,7 @@ export function EvidenceIntake({
         <div id="crn-evidence-user-bar" className="evidence-user-bar">
           <UserButton />
         </div>
-        <form id="crn-evidence-form" className="evidence-form" onSubmit={submit}>
+        <form id="crn-evidence-form" className="evidence-form" onSubmit={submit} ref={formRef}>
           <label id="crn-evidence-title-label" htmlFor="crn-evidence-title-input">
             {t.title}
           </label>
@@ -296,7 +339,8 @@ export function EvidenceIntake({
             id="crn-evidence-title-input"
             value={title}
             maxLength={240}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => { setTitle(event.target.value); rotateRequestKey(); }}
+            disabled={isSubmitting}
             required
           />
 
@@ -307,7 +351,8 @@ export function EvidenceIntake({
             id="crn-evidence-description-input"
             value={description}
             maxLength={4_000}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(event) => { setDescription(event.target.value); rotateRequestKey(); }}
+            disabled={isSubmitting}
             rows={4}
           />
 
@@ -318,6 +363,7 @@ export function EvidenceIntake({
             id="crn-evidence-file-input"
             type="file"
             onChange={handleFile}
+            disabled={isSubmitting}
             required
           />
 

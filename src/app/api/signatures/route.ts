@@ -1,10 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireContributor } from "@/lib/authorization";
 import { db } from "@/db/client";
-import { auditLogs, caseRecords, victimSignatures } from "@/db/schema";
+import { auditLogs, caseRecords, outboxEvents, victimSignatures } from "@/db/schema";
 import { errorResponse, HttpError } from "@/lib/http";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,7 +38,13 @@ async function findPublicCase(caseCode: string) {
   const [caseRecord] = await db()
     .select({ id: caseRecords.id })
     .from(caseRecords)
-    .where(and(eq(caseRecords.code, caseCode), eq(caseRecords.isPublic, true)))
+    .where(
+      and(
+        eq(caseRecords.code, caseCode),
+        eq(caseRecords.visibility, "public"),
+        isNotNull(caseRecords.currentPublishedVersion),
+      ),
+    )
     .limit(1);
 
   if (!caseRecord) {
@@ -102,6 +109,12 @@ export async function POST(request: Request) {
   try {
     const actor = await requireContributor();
     const input = submissionSchema.parse(await request.json());
+    await enforceRateLimit({
+      action: "signature.submit",
+      subject: `${actor.id}:${input.caseCode}`,
+      limit: 10,
+      windowSeconds: 3_600,
+    });
     const caseRecord = await findPublicCase(input.caseCode);
     const database = db();
     const now = new Date();
@@ -134,6 +147,12 @@ export async function POST(request: Request) {
         actorId: actor.id,
         action: "signature.submitted_or_updated",
         detail: { visibility: input.visibility },
+      }),
+      database.insert(outboxEvents).values({
+        type: "signature.submitted_or_updated",
+        aggregateType: "case",
+        aggregateId: caseRecord.id,
+        payload: { caseId: caseRecord.id, signerId: actor.id },
       }),
     ]);
 
@@ -175,6 +194,7 @@ export async function DELETE(request: Request) {
       .select({
         id: victimSignatures.id,
         status: victimSignatures.status,
+        updatedAt: victimSignatures.updatedAt,
       })
       .from(victimSignatures)
       .where(
@@ -190,27 +210,35 @@ export async function DELETE(request: Request) {
     }
 
     const now = new Date();
-    const [withdrawn] = await database
-      .update(victimSignatures)
-      .set({ status: "revoked", updatedAt: now })
-      .where(
-        and(
-          eq(victimSignatures.id, signature.id),
-          eq(victimSignatures.status, signature.status),
-        ),
+    const detail = JSON.stringify({
+      signatureId: signature.id,
+      previousStatus: signature.status,
+    });
+    const payload = JSON.stringify({ signatureId: signature.id, caseId: caseRecord.id });
+    const result = await database.execute<{ id: string }>(sql`
+      with updated as (
+        update ${victimSignatures}
+        set ${victimSignatures.status} = 'revoked', ${victimSignatures.updatedAt} = ${now}
+        where
+          ${victimSignatures.id} = ${signature.id}
+          and ${victimSignatures.status} = ${signature.status}
+          and ${victimSignatures.updatedAt} = ${signature.updatedAt}
+        returning id
+      ), audit as (
+        insert into ${auditLogs} (case_id, actor_id, resource_type, resource_id, action, detail)
+        select ${caseRecord.id}, ${actor.id}, 'signature', updated.id, 'signature.withdrawn', ${detail}::jsonb
+        from updated
+      ), outbox as (
+        insert into ${outboxEvents} (type, aggregate_type, aggregate_id, payload)
+        select 'signature.withdrawn', 'signature', updated.id, ${payload}::jsonb
+        from updated
       )
-      .returning({ id: victimSignatures.id });
+      select id from updated
+    `);
 
-    if (!withdrawn) {
+    if (result.rows.length === 0) {
       throw new HttpError(409, "The signature status changed. Please refresh and try again.");
     }
-
-    await database.insert(auditLogs).values({
-      caseId: caseRecord.id,
-      actorId: actor.id,
-      action: "signature.withdrawn",
-      detail: { signatureId: signature.id, previousStatus: signature.status },
-    });
 
     return NextResponse.json({ status: "revoked" });
   } catch (error) {

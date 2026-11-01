@@ -1,4 +1,16 @@
 import { auth } from "@clerk/nextjs/server";
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
+import { db } from "@/db/client";
+import {
+  caseMembers,
+  caseRecords,
+  organizationMembers,
+} from "@/db/schema";
+import {
+  hasCasePermission,
+  type CasePermission,
+} from "@/lib/case-policy";
 import { HttpError } from "@/lib/http";
 
 export type Role = "contributor" | "reviewer" | "admin";
@@ -47,4 +59,53 @@ export async function requireReviewer(): Promise<Actor> {
     throw new HttpError(403, "Reviewer access is required.");
   }
   return actor;
+}
+
+export async function requireCasePermission(
+  caseId: string,
+  permission: CasePermission,
+) {
+  if (!z.string().uuid().safeParse(caseId).success) {
+    throw new HttpError(404, "Case not found.");
+  }
+  const actor = await requireContributor();
+  const [record] = await db()
+    .select({
+      id: caseRecords.id,
+      organizationId: caseRecords.organizationId,
+      createdBy: caseRecords.createdBy,
+      caseRole: caseMembers.role,
+      organizationRole: organizationMembers.role,
+    })
+    .from(caseRecords)
+    .leftJoin(
+      caseMembers,
+      and(eq(caseMembers.caseId, caseRecords.id), eq(caseMembers.userId, actor.id)),
+    )
+    .leftJoin(
+      organizationMembers,
+      and(
+        eq(organizationMembers.organizationId, caseRecords.organizationId),
+        eq(organizationMembers.userId, actor.id),
+      ),
+    )
+    .where(eq(caseRecords.id, caseId))
+    .limit(1);
+
+  if (!record) throw new HttpError(404, "Case not found.");
+  if (
+    !hasCasePermission(
+      {
+        globalRole: actor.role,
+        caseRole: record.caseRole,
+        organizationRole: record.organizationRole,
+        isCreator: record.createdBy === actor.id,
+      },
+      permission,
+    )
+  ) {
+    throw new HttpError(403, "You do not have permission to access this case.");
+  }
+
+  return { actor, case: record };
 }

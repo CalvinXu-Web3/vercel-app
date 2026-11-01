@@ -22,6 +22,41 @@
       "when": 1792425140207,
       "tag": "0002_absent_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793528197264,
+      "tag": "0003_sloppy_ben_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793528475947,
+      "tag": "0004_hot_cardiac",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793528636893,
+      "tag": "0005_chemical_slayback",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793528781631,
+      "tag": "0006_old_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793548197328,
+      "tag": "0007_dark_marrow",
+      "breakpoints": true
     }
   ]
 }

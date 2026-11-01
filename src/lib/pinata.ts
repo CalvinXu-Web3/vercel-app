@@ -8,6 +8,16 @@ type EvidenceStoragePolicy = {
   network: PinataNetwork;
 };
 
+export type PinataFileRecord = {
+  id: string;
+  name: string;
+  cid: string;
+  size: number;
+  mimeType: string;
+  groupId: string | null;
+  keyvalues: Record<string, string>;
+};
+
 function required(name: string) {
   const value = process.env[name];
   if (!value) {
@@ -102,6 +112,80 @@ export async function createPinataUploadUrl(input: {
   }
 
   return payload.data;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+export function validatePinataUploadRecord(
+  value: unknown,
+  expected: {
+    evidenceFileId: string;
+    pinataFileId: string;
+    filename: string;
+    bytes: number;
+    mimeType: string;
+    groupId?: string;
+    clientCid?: string;
+  },
+): PinataFileRecord {
+  const data = asRecord(value);
+  const keyvalues = asRecord(data?.keyvalues);
+  const file: PinataFileRecord | null = data
+    ? {
+        id: typeof data.id === "string" ? data.id : "",
+        name: typeof data.name === "string" ? data.name : "",
+        cid: typeof data.cid === "string" ? data.cid : "",
+        size: typeof data.size === "number" ? data.size : -1,
+        mimeType: typeof data.mime_type === "string" ? data.mime_type : "",
+        groupId: typeof data.group_id === "string" ? data.group_id : null,
+        keyvalues: Object.fromEntries(
+          Object.entries(keyvalues ?? {}).filter(
+            (entry): entry is [string, string] => typeof entry[1] === "string",
+          ),
+        ),
+      }
+    : null;
+
+  if (
+    !file ||
+    file.id !== expected.pinataFileId ||
+    !file.cid ||
+    file.name !== expected.filename ||
+    file.size !== expected.bytes ||
+    file.mimeType !== expected.mimeType ||
+    file.keyvalues.crn_evidence_file_id !== expected.evidenceFileId ||
+    (expected.groupId && file.groupId !== expected.groupId) ||
+    (expected.clientCid && file.cid !== expected.clientCid)
+  ) {
+    throw new HttpError(409, "The uploaded file could not be verified against its upload intent.");
+  }
+
+  return file;
+}
+
+export async function verifyPinataUpload(input: {
+  network: PinataNetwork;
+  evidenceFileId: string;
+  pinataFileId: string;
+  filename: string;
+  bytes: number;
+  mimeType: string;
+  clientCid?: string;
+}) {
+  const payload = await pinataFetch(
+    `https://api.pinata.cloud/v3/files/${input.network}/${encodeURIComponent(input.pinataFileId)}`,
+    { method: "GET" },
+  );
+  const data = asRecord(payload)?.data;
+
+  return validatePinataUploadRecord(data, {
+    ...input,
+    groupId: process.env.PINATA_GROUP_ID || undefined,
+  });
 }
 
 export async function createPrivateAccessLink(cid: string) {

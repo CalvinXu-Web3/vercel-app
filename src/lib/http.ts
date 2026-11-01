@@ -5,6 +5,7 @@ export class HttpError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly headers?: HeadersInit,
   ) {
     super(message);
   }
@@ -12,7 +13,10 @@ export class HttpError extends Error {
 
 export function errorResponse(error: unknown) {
   if (error instanceof HttpError) {
-    return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.status, headers: error.headers },
+    );
   }
 
   if (error instanceof ZodError) {

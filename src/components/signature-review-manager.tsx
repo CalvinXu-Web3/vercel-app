@@ -26,7 +26,7 @@ async function errorMessage(response: Response) {
   return payload?.error ?? `请求失败（${response.status}）。`;
 }
 
-export function SignatureReviewManager() {
+export function SignatureReviewManager({ caseId }: { caseId?: string }) {
   const [signatures, setSignatures] = useState<ReviewSignature[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -35,7 +35,8 @@ export function SignatureReviewManager() {
   const load = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/review/signatures", { cache: "no-store" });
+      const query = caseId ? `?caseId=${encodeURIComponent(caseId)}` : "";
+      const response = await fetch(`/api/review/signatures${query}`, { cache: "no-store" });
       if (!response.ok) throw new Error(await errorMessage(response));
       const payload = (await response.json()) as { signatures: ReviewSignature[] };
       setSignatures(payload.signatures);
@@ -49,7 +50,7 @@ export function SignatureReviewManager() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [caseId]);
 
   const review = async (signatureId: string, action: "approve" | "reject") => {
     setUpdatingId(signatureId);
@@ -73,7 +74,7 @@ export function SignatureReviewManager() {
   return <main className="review-page">
     <header className="review-page-header">
       <div><span className="section-index">REVIEWER WORKSPACE</span><h1>联署发布管理</h1><p>联署不是证据。只有审核通过的匿名或化名记录可在公开墙中出现；“仅计数”通过后不会展示身份标识。</p></div>
-      <div className="review-header-actions"><Link className="button button-ghost small" href="/review/evidence">材料审核</Link><button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>刷新队列</button></div>
+      <div className="review-header-actions">{caseId && <Link className="button button-ghost small" href={`/workspace/cases/${caseId}`}>返回案件</Link>}<Link className="button button-ghost small" href={caseId ? `/review/evidence?caseId=${encodeURIComponent(caseId)}` : "/review/evidence"}>材料审核</Link><button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>刷新队列</button></div>
     </header>
     {message && <p className="review-message" role="status">{message}</p>}
     {loading ? <p className="review-empty">正在读取联署审核队列…</p> : signatures.length === 0 ? <p className="review-empty">当前没有待管理的联署。</p> : <section className="review-list" aria-label="联署审核队列">{signatures.map((signature) => {

@@ -49,7 +49,7 @@ async function errorMessage(response: Response) {
   return payload?.error ?? `请求失败（${response.status}）。`;
 }
 
-export function EvidenceReviewManager() {
+export function EvidenceReviewManager({ caseId }: { caseId?: string }) {
   const [items, setItems] = useState<ReviewEvidence[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -59,7 +59,8 @@ export function EvidenceReviewManager() {
   const load = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/review/evidence", { cache: "no-store" });
+      const query = caseId ? `?caseId=${encodeURIComponent(caseId)}` : "";
+      const response = await fetch(`/api/review/evidence${query}`, { cache: "no-store" });
       if (!response.ok) throw new Error(await errorMessage(response));
       const payload = (await response.json()) as { evidence: ReviewEvidence[] };
       setItems(payload.evidence);
@@ -73,7 +74,7 @@ export function EvidenceReviewManager() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [caseId]);
 
   const update = async (evidenceId: string, action: ReviewAction) => {
     setUpdatingId(evidenceId);
@@ -130,7 +131,8 @@ export function EvidenceReviewManager() {
           <p>仅可发布经过审核的标题和说明；原始文件、提交者身份及存储标识始终保持受限。</p>
         </div>
         <div className="review-header-actions">
-          <Link className="button button-ghost small" href="/review/signatures">联署审核</Link>
+          {caseId && <Link className="button button-ghost small" href={`/workspace/cases/${caseId}`}>返回案件</Link>}
+          <Link className="button button-ghost small" href={caseId ? `/review/signatures?caseId=${encodeURIComponent(caseId)}` : "/review/signatures"}>联署审核</Link>
           <button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>
             刷新队列
           </button>

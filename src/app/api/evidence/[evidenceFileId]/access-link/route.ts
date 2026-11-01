@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { requireReviewer } from "@/lib/authorization";
+import { requireCasePermission, requireContributor } from "@/lib/authorization";
 import { db } from "@/db/client";
 import { auditLogs, evidenceFiles, evidenceItems } from "@/db/schema";
 import { errorResponse, HttpError } from "@/lib/http";
@@ -14,7 +14,7 @@ export async function POST(
   context: { params: Promise<{ evidenceFileId: string }> },
 ) {
   try {
-    const actor = await requireReviewer();
+    await requireContributor();
     const { evidenceFileId } = await context.params;
     const storagePolicy = getEvidenceStoragePolicy();
 
@@ -50,6 +50,7 @@ export async function POST(
     if (!evidence) {
       throw new HttpError(404, "Evidence record not found.");
     }
+    const { actor } = await requireCasePermission(evidence.caseId, "case:review");
 
     const url = await createPrivateAccessLink(file.cid);
 

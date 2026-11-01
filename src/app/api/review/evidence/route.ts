@@ -1,15 +1,17 @@
-import { desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireReviewer } from "@/lib/authorization";
+import { requireCasePermission, requireContributor, requireReviewer } from "@/lib/authorization";
 import { db } from "@/db/client";
 import {
   auditLogs,
   caseRecords,
   evidenceFiles,
   evidenceItems,
+  outboxEvents,
 } from "@/db/schema";
 import { errorResponse, HttpError } from "@/lib/http";
+import { parsePagination } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,11 +25,43 @@ const actionSchema = z.object({
 
 const publishableStatuses = new Set(["pending_review", "approved"]);
 
-export async function GET() {
+const querySchema = z.object({
+  caseId: z.string().uuid().optional(),
+  caseCode: z.string().trim().min(3).max(64).optional(),
+  status: z
+    .enum([
+      "pending_upload",
+      "upload_url_failed",
+      "uploaded",
+      "pending_review",
+      "approved",
+      "rejected",
+      "quarantined",
+    ])
+    .optional(),
+});
+
+export async function GET(request: Request) {
   try {
-    await requireReviewer();
     const database = db();
-    const evidence = await database
+    const pagination = parsePagination(request);
+    const searchParams = new URL(request.url).searchParams;
+    const query = querySchema.parse({
+      caseId: searchParams.get("caseId") || undefined,
+      caseCode: searchParams.get("caseCode") || undefined,
+      status: searchParams.get("status") || undefined,
+    });
+    if (query.caseId) {
+      await requireCasePermission(query.caseId, "case:review");
+    } else {
+      await requireReviewer();
+    }
+    const filter = and(
+      query.caseId ? eq(caseRecords.id, query.caseId) : undefined,
+      query.caseCode ? eq(caseRecords.code, query.caseCode) : undefined,
+      query.status ? eq(evidenceItems.status, query.status) : undefined,
+    );
+    const evidenceQuery = database
       .select({
         id: evidenceItems.id,
         caseCode: caseRecords.code,
@@ -50,9 +84,21 @@ export async function GET() {
       .from(evidenceItems)
       .innerJoin(caseRecords, eq(evidenceItems.caseId, caseRecords.id))
       .leftJoin(evidenceFiles, eq(evidenceFiles.evidenceId, evidenceItems.id))
-      .orderBy(desc(evidenceItems.createdAt));
+      .where(filter)
+      .orderBy(desc(evidenceItems.createdAt))
+      .limit(pagination.limit)
+      .offset(pagination.offset);
+    const totalQuery = database
+      .select({ value: count() })
+      .from(evidenceItems)
+      .innerJoin(caseRecords, eq(evidenceItems.caseId, caseRecords.id))
+      .where(filter);
+    const [evidence, totals] = await Promise.all([evidenceQuery, totalQuery]);
 
-    return NextResponse.json({ evidence });
+    return NextResponse.json({
+      evidence,
+      pagination: { ...pagination, total: totals[0]?.value ?? 0 },
+    });
   } catch (error) {
     return errorResponse(error);
   }
@@ -60,7 +106,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const actor = await requireReviewer();
+    await requireContributor();
     const input = actionSchema.parse(await request.json());
     const database = db();
     const [evidence] = await database
@@ -71,6 +117,7 @@ export async function PATCH(request: Request) {
         visibility: evidenceItems.visibility,
         publicTitle: evidenceItems.publicTitle,
         publicDescription: evidenceItems.publicDescription,
+        updatedAt: evidenceItems.updatedAt,
       })
       .from(evidenceItems)
       .where(eq(evidenceItems.id, input.evidenceId))
@@ -79,6 +126,7 @@ export async function PATCH(request: Request) {
     if (!evidence) {
       throw new HttpError(404, "Evidence item not found.");
     }
+    const { actor } = await requireCasePermission(evidence.caseId, "case:review");
 
     const [file] = await database
       .select({ status: evidenceFiles.status })
@@ -117,40 +165,66 @@ export async function PATCH(request: Request) {
     }
 
     const reviewedAt = new Date();
-    await database.batch([
-      database
-        .update(evidenceItems)
-        .set({
-          status,
-          visibility,
-          reviewerId: actor.id,
-          reviewedAt,
-          updatedAt: reviewedAt,
-          ...(input.action === "publish" ? { publicTitle, publicDescription } : {}),
-        })
-        .where(eq(evidenceItems.id, evidence.id)),
-      database.insert(auditLogs).values({
-        caseId: evidence.caseId,
-        evidenceId: evidence.id,
-        actorId: actor.id,
-        action: `evidence.review.${input.action}`,
-        detail: {
-          previousStatus: evidence.status,
-          previousVisibility: evidence.visibility,
-          status,
-          visibility,
-        },
-      }),
-    ]);
+    const nextPublicTitle = input.action === "publish" ? publicTitle ?? null : null;
+    const nextPublicDescription =
+      input.action === "publish" ? publicDescription ?? null : null;
+    const detail = JSON.stringify({
+      previousStatus: evidence.status,
+      previousVisibility: evidence.visibility,
+      status,
+      visibility,
+    });
+    const payload = JSON.stringify({
+      evidenceId: evidence.id,
+      caseId: evidence.caseId,
+      status,
+      visibility,
+    });
+    const reviewed = await database.execute<{ id: string }>(sql`
+      with updated as (
+        update ${evidenceItems}
+        set
+          ${evidenceItems.status} = ${status},
+          ${evidenceItems.visibility} = ${visibility},
+          ${evidenceItems.reviewerId} = ${actor.id},
+          ${evidenceItems.reviewedAt} = ${reviewedAt},
+          ${evidenceItems.updatedAt} = ${reviewedAt},
+          ${evidenceItems.publicTitle} = ${nextPublicTitle},
+          ${evidenceItems.publicDescription} = ${nextPublicDescription}
+        where
+          ${evidenceItems.id} = ${evidence.id}
+          and ${evidenceItems.status} = ${evidence.status}
+          and ${evidenceItems.visibility} = ${evidence.visibility}
+          and ${evidenceItems.updatedAt} = ${evidence.updatedAt}
+        returning ${evidenceItems.id}, ${evidenceItems.caseId}
+      ), audit as (
+        insert into ${auditLogs} (case_id, evidence_id, actor_id, action, detail)
+        select
+          updated.case_id,
+          updated.id,
+          ${actor.id},
+          ${`evidence.review.${input.action}`},
+          ${detail}::jsonb
+        from updated
+      ), outbox as (
+        insert into ${outboxEvents} (type, aggregate_type, aggregate_id, payload)
+        select ${`evidence.review.${input.action}`}, 'evidence', updated.id, ${payload}::jsonb
+        from updated
+      )
+      select id from updated
+    `);
+
+    if (reviewed.rows.length === 0) {
+      throw new HttpError(409, "The evidence status changed. Please refresh and try again.");
+    }
 
     return NextResponse.json({
       evidence: {
         id: evidence.id,
         status,
         visibility,
-        publicTitle: input.action === "publish" ? publicTitle : evidence.publicTitle,
-        publicDescription:
-          input.action === "publish" ? publicDescription : evidence.publicDescription,
+        publicTitle: nextPublicTitle,
+        publicDescription: nextPublicDescription,
         reviewedAt,
         updatedAt: reviewedAt,
       },
