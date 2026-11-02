@@ -74,7 +74,7 @@ export function CaseSubmissionReviewManager() {
     <main className="review-page">
       <header className="review-page-header">
         <div><span className="section-index">CASE TRIAGE</span><h1>案件线索审核</h1><p>线索在转为正式案件前必须完成去重、隐私与事实风险检查；接受操作只生成私有草稿。</p></div>
-        <div className="review-header-actions"><Link className="button button-ghost small" href="/review/evidence">材料审核</Link><button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>刷新队列</button></div>
+        <div className="review-header-actions"><Link className="button button-ghost small" href="/workspace">工作台总览</Link><Link className="button button-ghost small" href="/review/evidence">材料审核</Link><button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>刷新队列</button></div>
       </header>
       {message && <p className="review-message" role="status">{message}</p>}
       {loading ? <p className="review-empty">正在读取审核队列…</p> : items.length === 0 ? <p className="review-empty">当前没有案件线索。</p> : (

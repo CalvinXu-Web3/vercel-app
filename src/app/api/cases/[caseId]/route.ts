@@ -1,7 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireCasePermission } from "@/lib/authorization";
+import { requireCasePermission, requireReviewer } from "@/lib/authorization";
 import { hasCasePermission } from "@/lib/case-policy";
 import { isCaseContentEditable } from "@/lib/case-workflow";
 import { db } from "@/db/client";
@@ -33,6 +33,7 @@ export async function GET(
   context: { params: Promise<{ caseId: string }> },
 ) {
   try {
+    await requireReviewer();
     const { caseId } = await context.params;
     z.string().uuid().parse(caseId);
     const access = await requireCasePermission(caseId, "case:view");
@@ -123,6 +124,7 @@ export async function PATCH(
   context: { params: Promise<{ caseId: string }> },
 ) {
   try {
+    await requireReviewer();
     const { caseId } = await context.params;
     z.string().uuid().parse(caseId);
     const { actor } = await requireCasePermission(caseId, "case:edit");

@@ -74,7 +74,7 @@ export function SignatureReviewManager({ caseId }: { caseId?: string }) {
   return <main className="review-page">
     <header className="review-page-header">
       <div><span className="section-index">REVIEWER WORKSPACE</span><h1>联署发布管理</h1><p>联署不是证据。只有审核通过的匿名或化名记录可在公开墙中出现；“仅计数”通过后不会展示身份标识。</p></div>
-      <div className="review-header-actions">{caseId && <Link className="button button-ghost small" href={`/workspace/cases/${caseId}`}>返回案件</Link>}<Link className="button button-ghost small" href={caseId ? `/review/evidence?caseId=${encodeURIComponent(caseId)}` : "/review/evidence"}>材料审核</Link><button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>刷新队列</button></div>
+      <div className="review-header-actions">{!caseId && <Link className="button button-ghost small" href="/workspace">工作台总览</Link>}{caseId && <Link className="button button-ghost small" href={`/workspace/cases/${caseId}`}>返回案件</Link>}<Link className="button button-ghost small" href={caseId ? `/review/evidence?caseId=${encodeURIComponent(caseId)}` : "/review/evidence"}>材料审核</Link><button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>刷新队列</button></div>
     </header>
     {message && <p className="review-message" role="status">{message}</p>}
     {loading ? <p className="review-empty">正在读取联署审核队列…</p> : signatures.length === 0 ? <p className="review-empty">当前没有待管理的联署。</p> : <section className="review-list" aria-label="联署审核队列">{signatures.map((signature) => {

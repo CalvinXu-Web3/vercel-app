@@ -131,6 +131,7 @@ export function EvidenceReviewManager({ caseId }: { caseId?: string }) {
           <p>仅可发布经过审核的标题和说明；原始文件、提交者身份及存储标识始终保持受限。</p>
         </div>
         <div className="review-header-actions">
+          {!caseId && <Link className="button button-ghost small" href="/workspace">工作台总览</Link>}
           {caseId && <Link className="button button-ghost small" href={`/workspace/cases/${caseId}`}>返回案件</Link>}
           <Link className="button button-ghost small" href={caseId ? `/review/signatures?caseId=${encodeURIComponent(caseId)}` : "/review/signatures"}>联署审核</Link>
           <button className="button button-ghost small" type="button" onClick={() => void load()} disabled={loading}>

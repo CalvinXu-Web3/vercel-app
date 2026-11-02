@@ -8,6 +8,7 @@ import {
   organizationMembers,
 } from "@/db/schema";
 import {
+  canAccessWorkspace,
   hasCasePermission,
   type CasePermission,
 } from "@/lib/case-policy";
@@ -55,8 +56,8 @@ export async function requireContributor(): Promise<Actor> {
 
 export async function requireReviewer(): Promise<Actor> {
   const actor = await requireContributor();
-  if (actor.role !== "admin" && actor.role !== "reviewer") {
-    throw new HttpError(403, "Reviewer access is required.");
+  if (!canAccessWorkspace(actor.role)) {
+    throw new HttpError(403, "Administrator or reviewer access is required.");
   }
   return actor;
 }

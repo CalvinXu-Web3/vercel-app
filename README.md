@@ -77,17 +77,22 @@ existing single public case.
 
 ## Multi-user case workflow
 
-- Any authenticated contributor can create a private case submission at
-  `/workspace/cases/new`; an idempotency key and database-backed rate limit prevent
-  accidental duplicates and burst abuse.
+- Only Clerk users listed in `CRN_REVIEWER_USER_IDS` or `CRN_ADMIN_USER_IDS` can
+  enter `/workspace`, open review pages, or call case-management APIs. Hiding the
+  navigation is not the security boundary; every protected page and handler checks
+  the same server-side allowlist.
+- New-case material is received through the separately operated service mailbox.
+  After identity, duplication, privacy, and basic risk checks, an authorized staff
+  member manually creates the private intake record at `/workspace/cases/new`.
+  Ordinary signed-in users cannot create new case records from the application.
 - Platform reviewers triage submissions at `/review/cases`. Accepting a submission
-  creates a private canonical case owned by the original submitter; it does not
-  publish allegations.
+  creates a private canonical case; it does not publish allegations.
 - Case editors manage metadata, timeline entries, entities, relationships, and
   case-local wallet roles in `/workspace/cases/[caseId]`.
 - Case owners can add owners, editors, reviewers, and viewers by Clerk User ID.
-  Case-scoped reviewers can access only that case's evidence and signature queues.
-  Publishing remains reserved for organization publishers or platform admins.
+  These case and organization roles refine permissions only after the user passes
+  the platform reviewer/admin allowlist. Publishing remains reserved for authorized
+  organization publishers or platform admins.
 - Review and publication are separate permissions. Publication creates an immutable
   JSON snapshot and SHA-256 content hash. `/api/public/cases/*` reads only that
   snapshot, never the editable work tables.

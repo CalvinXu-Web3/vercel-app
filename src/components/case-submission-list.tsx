@@ -194,8 +194,8 @@ export function CaseSubmissionList() {
   return (
     <main className="review-page workspace-page">
       <header className="review-page-header">
-        <div><span className="section-index">MY PRIVATE WORKSPACE</span><h1>我的案件线索</h1><p>这里仅显示你提交的私有案件线索及审核反馈。</p></div>
-        <div className="review-header-actions"><Link className="button button-primary small" href="/workspace/cases/new">录入新案件</Link><Link className="button button-ghost small" href="/">返回公开页</Link></div>
+        <div><span className="section-index">STAFF CASE MANAGEMENT</span><h1>案件管理</h1><p>管理正式案件，以及根据服务邮箱材料创建的人工建档记录。</p></div>
+        <div className="review-header-actions"><Link className="button button-primary small" href="/workspace/cases/new">人工录入案件</Link><Link className="button button-ghost small" href="/workspace">工作台总览</Link><Link className="button button-ghost small" href="/">返回公开页</Link></div>
       </header>
       {message && <p className="review-message" role="status">{message}</p>}
       {!loading && cases.length > 0 && (
@@ -213,7 +213,7 @@ export function CaseSubmissionList() {
       {loading ? (
         <p className="review-empty">正在读取…</p>
       ) : items.length === 0 ? (
-        <section className="review-empty"><p>尚未录入案件线索。</p><Link className="button button-primary small" href="/workspace/cases/new">开始录入</Link></section>
+        <section className="review-empty"><p>当前账号尚未创建人工建档记录。</p><Link className="button button-primary small" href="/workspace/cases/new">人工录入案件</Link></section>
       ) : (
         <section className="review-list" aria-label="我的案件线索">
           {items.map((item) => <SubmissionCard item={item} key={item.id} reload={load} report={setMessage} />)}

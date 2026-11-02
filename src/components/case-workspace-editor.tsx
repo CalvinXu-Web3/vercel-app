@@ -167,7 +167,7 @@ export function CaseWorkspaceEditor({ caseId }: { caseId: string }) {
 
   return (
     <main className="review-page workspace-page">
-      <header className="review-page-header"><div><span className="section-index">{data.case.code}</span><h1>{data.case.titleZh}</h1><p>状态：{data.case.status.replaceAll("_", " ")} · 可见性：{data.case.visibility}</p></div><div className="review-header-actions"><Link className="button button-ghost small" href="/workspace/cases">返回列表</Link><button className="button button-ghost small" type="button" onClick={() => void load()}>刷新</button></div></header>
+      <header className="review-page-header"><div><span className="section-index">{data.case.code}</span><h1>{data.case.titleZh}</h1><p>状态：{data.case.status.replaceAll("_", " ")} · 可见性：{data.case.visibility}</p></div><div className="review-header-actions"><Link className="button button-ghost small" href="/workspace">工作台总览</Link><Link className="button button-ghost small" href="/workspace/cases">返回列表</Link><button className="button button-ghost small" type="button" onClick={() => void load()}>刷新</button></div></header>
       {message && <p className="review-message" role="status">{message}</p>}
       <section className="workspace-section">
         <h2>基本信息</h2>

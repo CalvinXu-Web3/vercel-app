@@ -1,7 +1,7 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireCasePermission } from "@/lib/authorization";
+import { requireCasePermission, requireReviewer } from "@/lib/authorization";
 import { db } from "@/db/client";
 import {
   auditLogs,
@@ -29,6 +29,7 @@ export async function POST(
   context: { params: Promise<{ caseId: string }> },
 ) {
   try {
+    await requireReviewer();
     const { caseId } = await context.params;
     z.string().uuid().parse(caseId);
     const { actor } = await requireCasePermission(caseId, "case:publish");

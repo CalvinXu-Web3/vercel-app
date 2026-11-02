@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { SignatureReviewManager } from "@/components/signature-review-manager";
-import { requireCasePermission, requireReviewer } from "@/lib/authorization";
+import { requireReviewer } from "@/lib/authorization";
 import { HttpError } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,7 @@ export default async function SignatureReviewPage({
 }) {
   const { caseId } = await searchParams;
   try {
-    if (caseId) await requireCasePermission(caseId, "case:review");
-    else await requireReviewer();
+    await requireReviewer();
   } catch (error) {
     if (error instanceof HttpError && (error.status === 401 || error.status === 403)) {
       redirect("/");

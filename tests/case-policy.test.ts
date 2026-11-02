@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hasCasePermission } from "../src/lib/case-policy";
+import { canAccessWorkspace, hasCasePermission } from "../src/lib/case-policy";
+
+test("only platform reviewers and admins can access the workspace", () => {
+  assert.equal(canAccessWorkspace("contributor"), false);
+  assert.equal(canAccessWorkspace("reviewer"), true);
+  assert.equal(canAccessWorkspace("admin"), true);
+});
 
 test("contributors have no implicit access to another user's case", () => {
   assert.equal(

@@ -1,7 +1,7 @@
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireCasePermission, requireContributor, requireReviewer } from "@/lib/authorization";
+import { requireReviewer } from "@/lib/authorization";
 import { db } from "@/db/client";
 import {
   auditLogs,
@@ -51,11 +51,7 @@ export async function GET(request: Request) {
       caseCode: searchParams.get("caseCode") || undefined,
       status: searchParams.get("status") || undefined,
     });
-    if (query.caseId) {
-      await requireCasePermission(query.caseId, "case:review");
-    } else {
-      await requireReviewer();
-    }
+    await requireReviewer();
     const filter = and(
       query.caseId ? eq(caseRecords.id, query.caseId) : undefined,
       query.caseCode ? eq(caseRecords.code, query.caseCode) : undefined,
@@ -106,7 +102,7 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    await requireContributor();
+    const actor = await requireReviewer();
     const input = actionSchema.parse(await request.json());
     const database = db();
     const [evidence] = await database
@@ -126,8 +122,6 @@ export async function PATCH(request: Request) {
     if (!evidence) {
       throw new HttpError(404, "Evidence item not found.");
     }
-    const { actor } = await requireCasePermission(evidence.caseId, "case:review");
-
     const [file] = await database
       .select({ status: evidenceFiles.status })
       .from(evidenceFiles)

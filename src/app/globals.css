@@ -506,6 +506,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .workspace-record-list span { color: var(--muted); font-family: var(--mono); font-size: .65rem; overflow-wrap: anywhere; }
 .workspace-workflow-actions { margin-top: 16px; }
 .workspace-waiting-note { margin: 18px 0 0; border-left: 2px solid var(--blue); padding: 10px 14px; color: var(--muted); background: rgba(82, 164, 255, .07); }
+.workspace-dashboard-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
+.workspace-dashboard-card { color: inherit; text-decoration: none; }
+.workspace-dashboard-card article { display: grid; min-height: 260px; height: 100%; grid-template-rows: auto auto 1fr auto; gap: 18px; border: 1px solid var(--border); padding: 24px; background: linear-gradient(145deg, rgba(17,25,36,.9), rgba(8,13,20,.76)); transition: border-color .2s, transform .2s, background .2s; }
+.workspace-dashboard-card:hover article, .workspace-dashboard-card:focus-visible article { border-color: var(--blue); background: linear-gradient(145deg, rgba(22,35,51,.94), rgba(8,13,20,.82)); transform: translateY(-2px); }
+.workspace-dashboard-card.is-primary article { border-color: rgba(245,199,106,.35); }
+.workspace-dashboard-card > article > span, .workspace-dashboard-card footer small { color: var(--blue); font-family: var(--mono); font-size: .62rem; letter-spacing: .09em; }
+.workspace-dashboard-card.is-primary > article > span { color: var(--gold); }
+.workspace-dashboard-card-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.workspace-dashboard-card h2 { margin: 0; font-size: 1.45rem; font-weight: 500; }
+.workspace-dashboard-card-heading strong { color: var(--gold); font-family: var(--mono); font-size: 2rem; font-weight: 500; }
+.workspace-dashboard-card p { margin: 0; color: var(--muted); line-height: 1.7; }
+.workspace-dashboard-card footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid var(--border); padding-top: 15px; }
+.workspace-dashboard-card footer i { color: var(--gold); font-style: normal; }
+.workspace-security-note { margin: 22px 0 0; border-left: 2px solid var(--blue); padding: 11px 14px; color: var(--muted); background: rgba(82,164,255,.06); font-size: .78rem; }
 .workspace-card-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .workspace-followup-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px; }
 .workspace-followup-form > h3, .workspace-followup-form > p, .workspace-followup-wide { grid-column: 1 / -1; }
@@ -516,6 +530,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .workspace-followup-form textarea { resize: vertical; }
 
 @media (max-width: 720px) {
+  .workspace-dashboard-grid { grid-template-columns: 1fr; }
   .workspace-form { grid-template-columns: 1fr; }
   .workspace-form-wide { grid-column: auto; }
   .workspace-followup-form { grid-template-columns: 1fr; }

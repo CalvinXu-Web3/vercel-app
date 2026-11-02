@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireContributor } from "@/lib/authorization";
+import { requireReviewer } from "@/lib/authorization";
 import { db } from "@/db/client";
 import { auditLogs, caseSubmissions, outboxEvents } from "@/db/schema";
 import {
@@ -42,7 +42,7 @@ export async function PATCH(
   context: { params: Promise<{ submissionId: string }> },
 ) {
   try {
-    const actor = await requireContributor();
+    const actor = await requireReviewer();
     const { submissionId } = await context.params;
     z.string().uuid().parse(submissionId);
     const input = updateSchema.parse(await request.json());

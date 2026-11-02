@@ -1,6 +1,6 @@
 import { and, desc, eq, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { requireContributor } from "@/lib/authorization";
+import { requireReviewer } from "@/lib/authorization";
 import { db } from "@/db/client";
 import { caseMembers, caseRecords, organizationMembers, organizations } from "@/db/schema";
 import { errorResponse } from "@/lib/http";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const actor = await requireContributor();
+    const actor = await requireReviewer();
     const database = db();
     const membershipFilter = actor.role === "admin" || actor.role === "reviewer"
       ? undefined

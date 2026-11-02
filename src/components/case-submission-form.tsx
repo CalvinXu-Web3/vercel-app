@@ -43,7 +43,7 @@ export function CaseSubmissionForm() {
       }
       const payload = (await response.json()) as { submission: { id: string } };
       setCreatedId(payload.submission.id);
-      setMessage("案件线索已安全提交，当前仅你本人和审核人员可见。");
+      setMessage("人工建档记录已保存并进入审核队列，不会自动公开。");
       form.reset();
       idempotencyKey.current = crypto.randomUUID();
     } catch (error) {
@@ -57,11 +57,11 @@ export function CaseSubmissionForm() {
     <main className="review-page workspace-page">
       <header className="review-page-header">
         <div>
-          <span className="section-index">PRIVATE CASE INTAKE</span>
-          <h1>录入案件线索</h1>
-          <p>提交内容默认私有，不会自动出现在公开案件页。审核人员完成去重、隐私和事实风险检查后，才可转为正式案件。</p>
+          <span className="section-index">STAFF CASE INTAKE</span>
+          <h1>人工录入案件</h1>
+          <p>仅用于录入服务邮箱收到且已经完成人工初审的资料。记录默认私有，完成去重、隐私和事实风险复核后，才可转为正式案件。</p>
         </div>
-        <Link className="button button-ghost small" href="/workspace/cases">返回我的案件</Link>
+        <Link className="button button-ghost small" href="/workspace/cases">返回案件管理</Link>
       </header>
       {message && <p className="review-message" role="status">{message}</p>}
       {createdId && <p className="workspace-reference">提交编号：<code>{createdId}</code></p>}
@@ -72,9 +72,9 @@ export function CaseSubmissionForm() {
         <label className="workspace-form-wide">案件概述（英文，可选）<textarea name="summaryEn" minLength={20} maxLength={10_000} rows={5} /></label>
         <label>涉及司法辖区（可选）<input name="jurisdiction" maxLength={120} /></label>
         <label>最早事件日期（可选）<input name="incidentDate" type="date" /></label>
-        <label className="workspace-consent workspace-form-wide"><input name="consent" type="checkbox" required /><span>我确认有权提交这些信息，并理解不得提交私钥、助记词、密码、无关个人隐私或明知不实的信息。</span></label>
+        <label className="workspace-consent workspace-form-wide"><input name="consent" type="checkbox" required /><span>我确认已核对材料来源及处理授权，并已排除私钥、助记词、密码、无关个人隐私或明知不实的信息。</span></label>
         <div className="workspace-form-actions workspace-form-wide">
-          <button className="button button-primary" type="submit" disabled={submitting}>{submitting ? "正在提交…" : "提交私有案件线索"}</button>
+          <button className="button button-primary" type="submit" disabled={submitting}>{submitting ? "正在保存…" : "创建待审核记录"}</button>
         </div>
       </form>
     </main>

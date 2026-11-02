@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireCasePermission } from "@/lib/authorization";
+import { requireCasePermission, requireReviewer } from "@/lib/authorization";
 import {
   caseWorkflowTransition,
   type CaseWorkflowAction,
@@ -35,6 +35,7 @@ export async function PATCH(
   context: { params: Promise<{ caseId: string }> },
 ) {
   try {
+    await requireReviewer();
     const { caseId } = await context.params;
     z.string().uuid().parse(caseId);
     const input = inputSchema.parse(await request.json());

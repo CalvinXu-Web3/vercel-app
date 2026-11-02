@@ -8,6 +8,10 @@ export type CasePermission =
   | "case:publish"
   | "case:members:manage";
 
+export function canAccessWorkspace(role: GlobalRole) {
+  return role === "reviewer" || role === "admin";
+}
+
 const organizationPermissions: Record<OrganizationRole, ReadonlySet<CasePermission>> = {
   owner: new Set([
     "case:view",

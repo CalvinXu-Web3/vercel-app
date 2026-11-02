@@ -1,7 +1,7 @@
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireContributor } from "@/lib/authorization";
+import { requireReviewer } from "@/lib/authorization";
 import { db } from "@/db/client";
 import { auditLogs, caseSubmissions, outboxEvents } from "@/db/schema";
 import { errorResponse, HttpError } from "@/lib/http";
@@ -27,7 +27,7 @@ const submissionSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    const actor = await requireContributor();
+    const actor = await requireReviewer();
     const pagination = parsePagination(request);
     const database = db();
     const [submissions, totals] = await Promise.all([
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const actor = await requireContributor();
+    const actor = await requireReviewer();
     const idempotencyKey = requireIdempotencyKey(request);
     const input = submissionSchema.parse(await request.json());
     const incidentStartedAt = input.incidentDate
